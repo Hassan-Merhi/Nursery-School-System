@@ -203,13 +203,14 @@ try{
     [employee],
   )).rows[0].id;
   const run=(await client.query(
-    "insert into payroll_run(run_number,period_start,period_end,pay_date,currency,status,locked_at) values ($1,'2026-10-01','2026-10-31','2026-10-31','USD','locked',now()) returning id",
+    "insert into payroll_run(run_number,period_start,period_end,pay_date,currency,status) values ($1,'2026-10-01','2026-10-31','2026-10-31','USD','draft') returning id",
     ["AN-PAY-"+suffix],
   )).rows[0].id;
   await client.query(
     "insert into payroll_run_item(payroll_run_id,employee_id,salary_agreement_id,base_salary,allowance_total,bonus_total,deduction_total,advance_repayment_total,gross_pay,payroll_expense,net_pay) values ($1,$2,$3,800,100,50,50,100,950,900,800)",
     [run,employee,agreement],
   );
+  await client.query("update payroll_run set status='locked',locked_at=now() where id=$1",[run]);
 
   const months=(await client.query("select * from analytics_monthly_financials('2026-09-01','2026-11-30') where currency='USD' order by month_start")).rows;
   assert.equal(months.length,3,"Monthly analytics must include an empty September");
