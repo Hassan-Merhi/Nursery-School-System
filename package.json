@@ -17,7 +17,8 @@
     "verify:accounting": "node scripts/verify-accounting.mjs",
     "verify:operations": "node scripts/verify-operations.mjs",
     "verify:rentals": "node scripts/verify-rentals.mjs",
-    "verify:payroll": "node scripts/verify-payroll.mjs"
+    "verify:payroll": "node scripts/verify-payroll.mjs",
+    "verify:reports": "node scripts/verify-reports.mjs"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
