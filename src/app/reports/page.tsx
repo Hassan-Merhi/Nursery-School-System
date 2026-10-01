@@ -74,13 +74,7 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
     activeStudentsResult,expectedResult,collectedResult,receivablesResult,cashBankResult,
     plResult,rentDueResult,positionResult,creditsResult,
   ]=await Promise.all([
-    query<Row>(`
-      select count(distinct s.id)::int as count
-      from student s
-      join student_enrollment se on se.student_id=s.id
-      where s.status='active' and se.status='enrolled'
-        and se.starts_on<=$1::date
-        and (se.withdrawal_on is null or se.withdrawal_on>$1::date)`,[to]),
+    query<Row>("select report_active_student_count($1::date) as count",[to]),
     query<Row>(`
       select currency,coalesce(sum(total_amount),0)::numeric(14,2)::text amount
       from invoice
