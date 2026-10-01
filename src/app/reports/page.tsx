@@ -255,6 +255,7 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
       <div className="top-actions no-print">
         <a className="button-link secondary-link" href="/dashboard">Administration</a>
         {can("accounting.view")?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}
+        {can("analytics.view")?<a className="button-link secondary-link" href="/analytics">Advanced analytics</a>:null}
       </div>
     </header>
 

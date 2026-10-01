@@ -389,3 +389,71 @@ th { color: var(--muted); font-size: .76rem; text-transform: uppercase; }
   .report-nav, .report-filter { display: none !important; }
   .document-sheet { border: 0; box-shadow: none; max-width: none; }
 }
+
+
+/* Step 13 — Advanced analytics */
+.analytics-shell { max-width: 1600px; }
+.analytics-filter { margin-bottom: 1rem; }
+.analytics-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem,.8fr) minmax(12rem,1fr) minmax(12rem,1fr) repeat(2,minmax(10rem,.8fr)) auto;
+  gap: .8rem;
+  align-items: end;
+}
+.analytics-filter-grid label { display: grid; gap: .35rem; font-weight: 700; }
+.analytics-period-note { margin: .8rem 0 0; }
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.analytics-metric { min-width: 0; }
+.analytics-currency-block + .analytics-currency-block {
+  border-top: 1px solid var(--line);
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+}
+.analytics-bars {
+  display: grid;
+  gap: .5rem;
+  margin: .9rem 0 1.2rem;
+  max-width: 70rem;
+}
+.analytics-bar-row {
+  display: grid;
+  grid-template-columns: minmax(8rem,14rem) minmax(8rem,1fr) minmax(8rem,auto);
+  gap: .7rem;
+  align-items: center;
+}
+.analytics-bar-label { color: var(--muted); font-size: .9rem; }
+.analytics-bar-track {
+  display: block;
+  min-height: .75rem;
+  border-radius: 999px;
+  background: var(--soft);
+  overflow: hidden;
+}
+.analytics-bar-fill {
+  display: block;
+  min-height: .75rem;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.analytics-empty {
+  border: 1px dashed var(--line);
+  border-radius: .7rem;
+  padding: 1rem;
+}
+@media (max-width: 1100px) {
+  .analytics-filter-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .analytics-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 700px) {
+  .analytics-filter-grid,.analytics-kpis { grid-template-columns: 1fr; }
+  .analytics-bar-row { grid-template-columns: 1fr; gap: .25rem; }
+}
+@media print {
+  .analytics-bars { break-inside: avoid; }
+  .analytics-kpis { grid-template-columns: repeat(4,1fr); }
+}
