@@ -14,7 +14,8 @@
     "db:seed-admin": "node scripts/seed-admin.mjs",
     "verify:students": "node scripts/verify-students.mjs",
     "verify:billing": "node scripts/verify-billing.mjs",
-    "verify:accounting": "node scripts/verify-accounting.mjs"
+    "verify:accounting": "node scripts/verify-accounting.mjs",
+    "verify:operations": "node scripts/verify-operations.mjs"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",

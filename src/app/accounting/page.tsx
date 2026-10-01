@@ -228,6 +228,7 @@ export default async function AccountingPage({
         </div>
         <div className="top-actions">
           <Link className="button-link secondary-link" href="/billing">Fees & billing</Link>
+          <Link className="button-link secondary-link" href="/operations">Operations</Link>
           <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
         </div>
       </header>

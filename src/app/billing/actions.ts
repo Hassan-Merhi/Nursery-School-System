@@ -21,6 +21,7 @@ function fail(message: string): never {
 
 function success(message: string): never {
   revalidatePath("/billing");
+  revalidatePath("/operations");
   redirect(`/billing?success=${encodeURIComponent(message)}`);
 }
 
@@ -761,6 +762,10 @@ export async function recordPaymentAction(formData: FormData) {
   const amount = money(value(formData, "amount"), "payment amount");
   const paymentKind = value(formData, "payment_kind") || "payment";
   const method = value(formData, "method");
+  const paymentAccountId = optionalUuid(value(formData, "payment_account_id"), "payment account");
+  const chequeNumber = value(formData, "cheque_number");
+  const chequeDueOnRaw = value(formData, "cheque_due_on");
+  const chequeDueOn = chequeDueOnRaw ? requireDate(chequeDueOnRaw, "cheque due date") : null;
   const receivedOn = requireDate(value(formData, "received_on"), "payment date");
   const reference = value(formData, "reference");
   const notes = value(formData, "notes");
@@ -770,12 +775,13 @@ export async function recordPaymentAction(formData: FormData) {
   if (!["cash", "card", "bank_transfer", "check", "other"].includes(method)) {
     fail("Select a valid payment method.");
   }
+  if (method === "check" && !chequeNumber) fail("Cheque number is required for cheque payments.");
   if (!/^[A-Z]{3}$/.test(currency)) fail("Currency must be a three-letter code.");
 
   await withTransaction(async (client) => {
     await requireAccountingReady(
       client,
-      ["payment_asset", "customer_deposits"],
+      paymentAccountId ? ["customer_deposits"] : ["payment_asset", "customer_deposits"],
       receivedOn,
     );
 
@@ -806,8 +812,8 @@ export async function recordPaymentAction(formData: FormData) {
     const inserted = await client.query<{ id: string }>(
       `insert into payment(
          receipt_number,family_id,student_id,payment_kind,amount,currency,
-         received_on,method,reference,notes,created_by
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         received_on,method,payment_account_id,cheque_number,cheque_due_on,reference,notes,created_by
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        returning id`,
       [
         receiptNumber,
@@ -818,6 +824,9 @@ export async function recordPaymentAction(formData: FormData) {
         currency,
         receivedOn,
         method,
+        paymentAccountId,
+        chequeNumber || null,
+        chequeDueOn,
         reference || null,
         notes || null,
         auth.userId,
@@ -864,6 +873,8 @@ export async function recordPaymentAction(formData: FormData) {
         amount,
         currency,
         paymentKind,
+        paymentAccountId,
+        chequeNumber: chequeNumber || null,
         balance: balance.rows[0],
       },
     });
