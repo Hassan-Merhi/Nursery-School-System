@@ -750,7 +750,9 @@ for each row execute function refresh_food_after_credit_status();
 
 create or replace view payment_balance as
 select
-  p.*,
+  p.id,p.receipt_number,p.family_id,p.student_id,p.payment_kind,p.amount,p.currency,
+  p.received_on,p.method,p.reference,p.notes,p.status,p.reversed_at,p.reversed_by,
+  p.reversal_reason,p.created_at,p.created_by,
   coalesce(a.allocated_amount,0)::numeric(12,2) as allocated_amount,
   (p.amount-coalesce(a.allocated_amount,0))::numeric(12,2) as unallocated_amount,
   case
@@ -759,7 +761,8 @@ select
     when p.payment_kind='prepayment' then 'prepayment'
     when coalesce(a.allocated_amount,0)>0 then 'overpayment'
     else 'unapplied_payment'
-  end as balance_type
+  end as balance_type,
+  p.payment_account_id,p.cheque_number,p.cheque_due_on
 from payment p
 left join (
   select x.payment_id,sum(x.amount) as allocated_amount
