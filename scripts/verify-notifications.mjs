@@ -35,7 +35,7 @@ try{
 
   const schoolYear=(await client.query(
     `insert into school_year(name,starts_on,ends_on,status)
-     values ('Notify Verify 2026-2027','2026-09-01','2027-06-30','current')
+     values ('Notify Verify 2026-2027','2026-09-01','2027-06-30','planned')
      returning id`,
   )).rows[0];
 
