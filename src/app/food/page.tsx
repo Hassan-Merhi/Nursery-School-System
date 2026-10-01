@@ -58,7 +58,7 @@ export default async function FoodPage({searchParams}:{searchParams:Promise<{err
   return <main className="app-shell">
     <header className="topbar">
       <div><p className="eyebrow">Release 2 · Step 10</p><h1>Food packages & student food billing</h1><p className="muted">Food selections use the existing family ledger, receipt engine, Accounts Receivable and General Ledger.</p></div>
-      <div className="top-actions"><Link className="button-link secondary-link" href="/dashboard">Dashboard</Link><Link className="button-link secondary-link" href="/billing">Billing</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link></div>
+      <div className="top-actions"><Link className="button-link secondary-link" href="/dashboard">Dashboard</Link><Link className="button-link secondary-link" href="/billing">Billing</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link><Link className="button-link secondary-link" href="/inventory">Inventory</Link></div>
     </header>
     {error?<div className="notice error">{error}</div>:null}
     {success?<div className="notice success">{success}</div>:null}
