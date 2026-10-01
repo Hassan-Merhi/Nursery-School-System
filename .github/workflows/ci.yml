@@ -48,5 +48,6 @@ jobs:
       - run: node scripts/verify-foundation.mjs
       - run: npm run verify:students
       - run: npm run verify:billing
+      - run: npm run verify:accounting
       - run: npm run typecheck
       - run: npm run build

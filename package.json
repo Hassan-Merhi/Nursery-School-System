@@ -13,7 +13,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed-admin": "node scripts/seed-admin.mjs",
     "verify:students": "node scripts/verify-students.mjs",
-    "verify:billing": "node scripts/verify-billing.mjs"
+    "verify:billing": "node scripts/verify-billing.mjs",
+    "verify:accounting": "node scripts/verify-accounting.mjs"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",

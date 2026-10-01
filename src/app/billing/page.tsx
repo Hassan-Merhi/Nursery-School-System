@@ -55,6 +55,7 @@ export default async function BillingPage({
   const auth = await requireUser();
   const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
+  const canAccounting = ["accounting.view","accounting.manage","accounting.post","accounting.period_lock","accounting.mapping"].some(can);
   const allowed = [
     "billing.view",
     "billing.manage",
@@ -346,6 +347,7 @@ export default async function BillingPage({
         </div>
         <div className="top-actions">
           <Link className="button-link secondary-link" href="/students">Families & students</Link>
+          {canAccounting ? <Link className="button-link secondary-link" href="/accounting">Accounting</Link> : null}
           <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
         </div>
       </header>
@@ -603,6 +605,7 @@ export default async function BillingPage({
               <p className="eyebrow">Term invoicing</p>
               <h2>Invoices & additional charges</h2>
               <p className="muted">Generate a draft from the active fee schedule. Approved discounts snapshot onto the nursery-fee line. Add charges before issuing.</p>
+              <p className="muted">Issuing posts Debit Accounts Receivable / Credit Billing Income using the mappings configured in Accounting.</p>
             </div>
           </div>
           {can("billing.manage") ? (
@@ -693,8 +696,9 @@ export default async function BillingPage({
                         <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required /></label>
                         <button type="submit">Add charge</button>
                       </form>
-                      <form action={issueInvoiceAction} className="compact-form">
+                      <form action={issueInvoiceAction} className="inline-form compact-form">
                         <input type="hidden" name="invoice_id" value={invoice.id} />
+                        <label>Invoice / posting date<input name="issued_on" type="date" defaultValue={today} required /></label>
                         <button type="submit">Issue invoice</button>
                       </form>
                       <form action={voidDraftInvoiceAction} className="inline-form compact-form">
@@ -717,7 +721,7 @@ export default async function BillingPage({
             <div>
               <p className="eyebrow">Cash collection</p>
               <h2>Payments, prepayments & overpayments</h2>
-              <p className="muted">A payment may be recorded without an invoice. Any unallocated amount stays available to the family instead of being lost.</p>
+              <p className="muted">A payment may be recorded without an invoice. Any unallocated amount stays available to the family instead of being lost. Accounting first records it in Customer Deposits; allocations then move that amount against Accounts Receivable.</p>
             </div>
           </div>
           {can("payments.manage") ? (
@@ -811,11 +815,13 @@ export default async function BillingPage({
                                 </select>
                               </label>
                               <label>Amount<input name="amount" type="number" min="0.01" step="0.01" max={payment.unallocated_amount} required /></label>
+                              <label>Posting date<input name="allocated_on" type="date" defaultValue={today} required /></label>
                               <button type="submit">Allocate</button>
                             </form>
                           ) : null}
                           <form action={reversePaymentAction} className="inline-form compact-form">
                             <input type="hidden" name="payment_id" value={payment.id} />
+                            <label>Reversal date<input name="reversal_date" type="date" defaultValue={today} required /></label>
                             <label>Reversal reason<input name="reason" required /></label>
                             <button type="submit" className="secondary">Reverse</button>
                           </form>
@@ -913,11 +919,13 @@ export default async function BillingPage({
                                 </select>
                               </label>
                               <label>Amount<input name="amount" type="number" min="0.01" step="0.01" max={credit.unallocated_amount} required /></label>
+                              <label>Posting date<input name="allocated_on" type="date" defaultValue={today} required /></label>
                               <button type="submit">Allocate credit</button>
                             </form>
                           ) : null}
                           <form action={reverseCreditNoteAction} className="inline-form compact-form">
                             <input type="hidden" name="credit_note_id" value={credit.id} />
+                            <label>Reversal date<input name="reversal_date" type="date" defaultValue={today} required /></label>
                             <label>Reversal reason<input name="reason" required /></label>
                             <button type="submit" className="secondary">Reverse credit</button>
                           </form>

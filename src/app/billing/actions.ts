@@ -106,6 +106,50 @@ async function activeInvoiceBalance(client: PoolClient, invoiceId: string) {
   return row;
 }
 
+async function requireOpenAccountingPeriod(client: PoolClient, postingDate: string) {
+  const period = await client.query(
+    `select 1
+     from accounting_period
+     where status='open' and $1::date between starts_on and ends_on
+     limit 1`,
+    [postingDate],
+  );
+  if (!period.rowCount) {
+    fail("The accounting posting date is not inside an open accounting period.");
+  }
+}
+
+async function requireAccountingReady(
+  client: PoolClient,
+  roles: string[],
+  postingDate: string,
+) {
+  await requireOpenAccountingPeriod(client, postingDate);
+
+  const journal = await client.query(
+    `select 1
+     from accounting_configuration c
+     join journal j on j.id=c.billing_journal_id
+     where c.id=1 and j.status='active'
+     limit 1`,
+  );
+  if (!journal.rowCount) {
+    fail("Configure an active billing journal in Accounting before posting billing transactions.");
+  }
+
+  if (roles.length) {
+    const mapped = await client.query<{ role_key: string }>(
+      "select role_key from accounting_mapping where role_key=any($1::text[])",
+      [roles],
+    );
+    const found = new Set(mapped.rows.map((row) => row.role_key));
+    const missing = roles.filter((role) => !found.has(role));
+    if (missing.length) {
+      fail(`Configure accounting mappings before posting billing: ${missing.join(", ")}.`);
+    }
+  }
+}
+
 export async function createFeeScheduleAction(formData: FormData) {
   const auth = await requirePermission("billing.manage");
   const termId = requireUuid(value(formData, "term_id"), "term");
@@ -633,6 +677,7 @@ export async function addInvoiceChargeAction(formData: FormData) {
 export async function issueInvoiceAction(formData: FormData) {
   const auth = await requirePermission("billing.manage");
   const invoiceId = requireUuid(value(formData, "invoice_id"), "invoice");
+  const issuedOn = requireDate(value(formData, "issued_on"), "invoice date");
 
   await withTransaction(async (client) => {
     const invoice = await client.query<{
@@ -650,20 +695,27 @@ export async function issueInvoiceAction(formData: FormData) {
     const lines = await client.query("select 1 from invoice_line where invoice_id=$1 limit 1", [invoiceId]);
     if (!lines.rowCount) fail("Cannot issue an invoice with no lines.");
 
+    await requireAccountingReady(
+      client,
+      ["accounts_receivable", "billing_income"],
+      issuedOn,
+    );
+
     await client.query(
       `update invoice
-       set status='issued',issued_on=current_date,updated_at=now(),updated_by=$2
+       set status='issued',issued_on=$2,updated_at=now(),updated_by=$3
        where id=$1`,
-      [invoiceId, auth.userId],
+      [invoiceId, issuedOn, auth.userId],
     );
     await client.query("select refresh_invoice_status($1)", [invoiceId]);
+    await client.query("select accounting_post_invoice($1,$2)", [invoiceId, auth.userId]);
 
     await writeAudit(client, {
       actorUserId: auth.userId,
       action: "invoice_issued",
       entityType: "invoice",
       entityId: invoiceId,
-      after: { invoiceNumber: row.invoice_number, totalAmount: row.total_amount },
+      after: { invoiceNumber: row.invoice_number, totalAmount: row.total_amount, issuedOn },
     });
   });
 
@@ -721,6 +773,12 @@ export async function recordPaymentAction(formData: FormData) {
   if (!/^[A-Z]{3}$/.test(currency)) fail("Currency must be a three-letter code.");
 
   await withTransaction(async (client) => {
+    await requireAccountingReady(
+      client,
+      ["payment_asset", "customer_deposits"],
+      receivedOn,
+    );
+
     const family = await client.query("select id from family where id=$1", [familyId]);
     if (!family.rowCount) fail("Family not found.");
     if (studentId) {
@@ -767,15 +825,26 @@ export async function recordPaymentAction(formData: FormData) {
     );
     const paymentId = inserted.rows[0].id;
 
+    let allocationId: string | null = null;
     if (invoiceId && invoiceBalance) {
       const allocationCents = Math.min(toCents(amount), toCents(invoiceBalance.balance_amount));
       if (allocationCents > 0) {
-        await client.query(
-          `insert into payment_allocation(payment_id,invoice_id,amount,created_by)
-           values ($1,$2,$3,$4)`,
-          [paymentId, invoiceId, fromCents(allocationCents), auth.userId],
+        const allocation = await client.query<{ id: string }>(
+          `insert into payment_allocation(payment_id,invoice_id,amount,allocated_on,created_by)
+           values ($1,$2,$3,$4,$5)
+           returning id`,
+          [paymentId, invoiceId, fromCents(allocationCents), receivedOn, auth.userId],
         );
+        allocationId = allocation.rows[0].id;
       }
+    }
+
+    await client.query("select accounting_post_payment($1,$2)", [paymentId, auth.userId]);
+    if (allocationId) {
+      await client.query(
+        "select accounting_post_payment_allocation($1,$2)",
+        [allocationId, auth.userId],
+      );
     }
 
     const balance = await client.query(
@@ -808,19 +877,30 @@ export async function allocatePaymentAction(formData: FormData) {
   const paymentId = requireUuid(value(formData, "payment_id"), "payment");
   const invoiceId = requireUuid(value(formData, "invoice_id"), "invoice");
   const amount = money(value(formData, "amount"), "allocation amount");
+  const allocatedOn = requireDate(value(formData, "allocated_on"), "allocation date");
 
   await withTransaction(async (client) => {
+    await requireAccountingReady(
+      client,
+      ["customer_deposits", "accounts_receivable"],
+      allocatedOn,
+    );
+    const allocation = await client.query<{ id: string }>(
+      `insert into payment_allocation(payment_id,invoice_id,amount,allocated_on,created_by)
+       values ($1,$2,$3,$4,$5)
+       returning id`,
+      [paymentId, invoiceId, amount, allocatedOn, auth.userId],
+    );
     await client.query(
-      `insert into payment_allocation(payment_id,invoice_id,amount,created_by)
-       values ($1,$2,$3,$4)`,
-      [paymentId, invoiceId, amount, auth.userId],
+      "select accounting_post_payment_allocation($1,$2)",
+      [allocation.rows[0].id, auth.userId],
     );
     await writeAudit(client, {
       actorUserId: auth.userId,
       action: "payment_allocated",
       entityType: "payment",
       entityId: paymentId,
-      after: { invoiceId, amount },
+      after: { invoiceId, amount, allocatedOn },
     });
   });
 
@@ -831,10 +911,12 @@ export async function reversePaymentAction(formData: FormData) {
   const auth = await requirePermission("payments.manage");
   const paymentId = requireUuid(value(formData, "payment_id"), "payment");
   const reason = value(formData, "reason");
+  const reversalDate = requireDate(value(formData, "reversal_date"), "reversal date");
 
   if (!reason) fail("Reversal reason is required.");
 
   await withTransaction(async (client) => {
+    await requireOpenAccountingPeriod(client, reversalDate);
     const payment = await client.query(
       "select * from payment where id=$1 for update",
       [paymentId],
@@ -849,13 +931,17 @@ export async function reversePaymentAction(formData: FormData) {
        where id=$1`,
       [paymentId, auth.userId, reason],
     );
+    await client.query(
+      "select accounting_reverse_payment($1,$2,$3,$4)",
+      [paymentId, reversalDate, auth.userId, reason],
+    );
     await writeAudit(client, {
       actorUserId: auth.userId,
       action: "payment_reversed",
       entityType: "payment",
       entityId: paymentId,
       before: row,
-      after: { status: "reversed", reason },
+      after: { status: "reversed", reason, reversalDate },
     });
   });
 
@@ -876,6 +962,12 @@ export async function createCreditNoteAction(formData: FormData) {
   if (!/^[A-Z]{3}$/.test(currency)) fail("Currency must be a three-letter code.");
 
   await withTransaction(async (client) => {
+    await requireAccountingReady(
+      client,
+      ["billing_income", "customer_deposits"],
+      issuedOn,
+    );
+
     let invoiceBalance: Awaited<ReturnType<typeof activeInvoiceBalance>> | null = null;
     if (invoiceId) {
       invoiceBalance = await activeInvoiceBalance(client, invoiceId);
@@ -912,15 +1004,26 @@ export async function createCreditNoteAction(formData: FormData) {
     );
     const creditId = inserted.rows[0].id;
 
+    let allocationId: string | null = null;
     if (invoiceId && invoiceBalance && ["issued", "partially_paid"].includes(invoiceBalance.status)) {
       const allocationCents = Math.min(toCents(amount), toCents(invoiceBalance.balance_amount));
       if (allocationCents > 0) {
-        await client.query(
-          `insert into credit_note_allocation(credit_note_id,invoice_id,amount,created_by)
-           values ($1,$2,$3,$4)`,
-          [creditId, invoiceId, fromCents(allocationCents), auth.userId],
+        const allocation = await client.query<{ id: string }>(
+          `insert into credit_note_allocation(credit_note_id,invoice_id,amount,allocated_on,created_by)
+           values ($1,$2,$3,$4,$5)
+           returning id`,
+          [creditId, invoiceId, fromCents(allocationCents), issuedOn, auth.userId],
         );
+        allocationId = allocation.rows[0].id;
       }
+    }
+
+    await client.query("select accounting_post_credit_note($1,$2)", [creditId, auth.userId]);
+    if (allocationId) {
+      await client.query(
+        "select accounting_post_credit_allocation($1,$2)",
+        [allocationId, auth.userId],
+      );
     }
 
     const balance = await client.query(
@@ -953,12 +1056,23 @@ export async function allocateCreditNoteAction(formData: FormData) {
   const creditNoteId = requireUuid(value(formData, "credit_note_id"), "credit note");
   const invoiceId = requireUuid(value(formData, "invoice_id"), "invoice");
   const amount = money(value(formData, "amount"), "credit allocation amount");
+  const allocatedOn = requireDate(value(formData, "allocated_on"), "allocation date");
 
   await withTransaction(async (client) => {
+    await requireAccountingReady(
+      client,
+      ["customer_deposits", "accounts_receivable"],
+      allocatedOn,
+    );
+    const allocation = await client.query<{ id: string }>(
+      `insert into credit_note_allocation(credit_note_id,invoice_id,amount,allocated_on,created_by)
+       values ($1,$2,$3,$4,$5)
+       returning id`,
+      [creditNoteId, invoiceId, amount, allocatedOn, auth.userId],
+    );
     await client.query(
-      `insert into credit_note_allocation(credit_note_id,invoice_id,amount,created_by)
-       values ($1,$2,$3,$4)`,
-      [creditNoteId, invoiceId, amount, auth.userId],
+      "select accounting_post_credit_allocation($1,$2)",
+      [allocation.rows[0].id, auth.userId],
     );
     await writeAudit(client, {
       actorUserId: auth.userId,
@@ -976,10 +1090,12 @@ export async function reverseCreditNoteAction(formData: FormData) {
   const auth = await requirePermission("billing.manage");
   const creditNoteId = requireUuid(value(formData, "credit_note_id"), "credit note");
   const reason = value(formData, "reason");
+  const reversalDate = requireDate(value(formData, "reversal_date"), "reversal date");
 
   if (!reason) fail("Reversal reason is required.");
 
   await withTransaction(async (client) => {
+    await requireOpenAccountingPeriod(client, reversalDate);
     const credit = await client.query(
       "select * from credit_note where id=$1 for update",
       [creditNoteId],
@@ -993,6 +1109,10 @@ export async function reverseCreditNoteAction(formData: FormData) {
        set status='reversed',reversed_at=now(),reversed_by=$2,reversal_reason=$3
        where id=$1`,
       [creditNoteId, auth.userId, reason],
+    );
+    await client.query(
+      "select accounting_reverse_credit_note($1,$2,$3,$4)",
+      [creditNoteId, reversalDate, auth.userId, reason],
     );
     await writeAudit(client, {
       actorUserId: auth.userId,
