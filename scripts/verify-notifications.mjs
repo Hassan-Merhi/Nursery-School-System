@@ -93,6 +93,10 @@ try{
   assert(after===before,"Notification refresh is not idempotent.");
 
   await client.query(
+    "update system_notification set status='acknowledged',acknowledged_at=now() where rule_key='employee_document_expiry' and source_id=$1",
+    [employeeDoc.id],
+  );
+  await client.query(
     "update employee_document_expiry set status='renewed' where id=$1",
     [employeeDoc.id],
   );
@@ -101,7 +105,15 @@ try{
     "select status from system_notification where rule_key='employee_document_expiry' and source_id=$1",
     [employeeDoc.id],
   );
-  assert(resolved.rows[0]?.status==="resolved","Cleared conditions must resolve on the next same-day refresh.");
+  assert(resolved.rows[0]?.status==="resolved","Cleared acknowledged conditions must resolve on the next same-day refresh.");
+
+  await client.query("update notification_rule set enabled=false where rule_key='term_start'");
+  await client.query("select * from refresh_system_notifications('2026-10-01'::date,null)");
+  const disabledRule=await client.query(
+    "select status from system_notification where rule_key='term_start' and source_id=$1",
+    [term.id],
+  );
+  assert(disabledRule.rows[0]?.status==="resolved","Disabling a rule must resolve its active notifications.");
 
   const adminPermission=await client.query(
     `select count(*)::int as count
