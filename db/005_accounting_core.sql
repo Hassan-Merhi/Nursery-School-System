@@ -139,6 +139,16 @@ create table journal (
   created_by uuid references app_user(id) on delete set null
 );
 
+create table accounting_configuration (
+  id smallint primary key default 1 check (id=1),
+  billing_journal_id uuid references journal(id) on delete restrict,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references app_user(id) on delete set null
+);
+
+insert into accounting_configuration(id) values (1)
+on conflict (id) do nothing;
+
 create table journal_entry (
   id uuid primary key default gen_random_uuid(),
   journal_id uuid not null references journal(id) on delete restrict,
@@ -477,6 +487,26 @@ create trigger accounting_mapping_validate
 before insert or update on accounting_mapping
 for each row execute function validate_accounting_mapping();
 
+create or replace function accounting_system_journal()
+returns uuid
+language plpgsql
+stable
+as $
+declare
+  v_journal_id uuid;
+begin
+  select j.id into v_journal_id
+  from accounting_configuration c
+  join journal j on j.id=c.billing_journal_id
+  where c.id=1 and j.status='active';
+
+  if v_journal_id is null then
+    raise exception 'Billing journal is not configured or is inactive';
+  end if;
+  return v_journal_id;
+end;
+$;
+
 alter table payment_allocation
   add column allocated_on date not null default current_date;
 
@@ -530,8 +560,7 @@ begin
     raise exception 'Invoice total must be greater than zero for accounting posting';
   end if;
 
-  select id into v_journal_id from journal where status='active' order by created_at,id limit 1;
-  if v_journal_id is null then raise exception 'Create an active journal before posting billing'; end if;
+  v_journal_id := accounting_system_journal();
 
   v_ar := accounting_mapped_account('accounts_receivable');
   v_income := accounting_mapped_account('billing_income');
@@ -582,8 +611,7 @@ begin
     raise exception 'Only posted payments can be posted to accounting';
   end if;
 
-  select id into v_journal_id from journal where status='active' order by created_at,id limit 1;
-  if v_journal_id is null then raise exception 'Create an active journal before posting billing'; end if;
+  v_journal_id := accounting_system_journal();
 
   v_asset := accounting_mapped_account('payment_asset');
   v_deposits := accounting_mapped_account('customer_deposits');
@@ -640,8 +668,7 @@ begin
 
   if not found then raise exception 'Posted payment allocation not found'; end if;
 
-  select id into v_journal_id from journal where status='active' order by created_at,id limit 1;
-  if v_journal_id is null then raise exception 'Create an active journal before posting billing'; end if;
+  v_journal_id := accounting_system_journal();
 
   v_ar := accounting_mapped_account('accounts_receivable');
   v_deposits := accounting_mapped_account('customer_deposits');
@@ -692,8 +719,7 @@ begin
     raise exception 'Only issued credit notes can be posted to accounting';
   end if;
 
-  select id into v_journal_id from journal where status='active' order by created_at,id limit 1;
-  if v_journal_id is null then raise exception 'Create an active journal before posting billing'; end if;
+  v_journal_id := accounting_system_journal();
 
   v_income := accounting_mapped_account('billing_income');
   v_deposits := accounting_mapped_account('customer_deposits');
@@ -750,8 +776,7 @@ begin
 
   if not found then raise exception 'Issued credit allocation not found'; end if;
 
-  select id into v_journal_id from journal where status='active' order by created_at,id limit 1;
-  if v_journal_id is null then raise exception 'Create an active journal before posting billing'; end if;
+  v_journal_id := accounting_system_journal();
 
   v_ar := accounting_mapped_account('accounts_receivable');
   v_deposits := accounting_mapped_account('customer_deposits');
@@ -886,8 +911,8 @@ with totals as (
     a.code as account_code,
     a.name as account_name,
     t.category,
-    coalesce(sum(jl.debit),0)::numeric(14,2) as total_debit,
-    coalesce(sum(jl.credit),0)::numeric(14,2) as total_credit
+    coalesce(sum(case when je.id is not null then jl.debit else 0 end),0)::numeric(14,2) as total_debit,
+    coalesce(sum(case when je.id is not null then jl.credit else 0 end),0)::numeric(14,2) as total_credit
   from account a
   join account_type t on t.id=a.account_type_id
   left join journal_line jl on jl.account_id=a.id
