@@ -16,6 +16,7 @@ import {
   reverseJournalAction,
   setAccountingPeriodStatusAction,
   updateAccountingMappingAction,
+  updateBillingJournalAction,
   updateAccountStatusAction,
 } from "./actions";
 
@@ -108,6 +109,12 @@ export default async function AccountingPage({
        order by status,code`,
     )
   ).rows;
+
+  const accountingConfiguration = (
+    await query<{ billing_journal_id: string | null }>(
+      "select billing_journal_id from accounting_configuration where id=1",
+    )
+  ).rows[0] ?? { billing_journal_id: null };
 
   const mappingRoles = (
     await query<Row>(
@@ -420,7 +427,20 @@ export default async function AccountingPage({
           </div>
 
           {can("accounting.mapping") ? (
-            <div className="card-list">
+            <>
+              <form action={updateBillingJournalAction} className="form-grid create-box">
+                <label>
+                  Automatic billing journal
+                  <select name="journal_id" defaultValue={accountingConfiguration.billing_journal_id ?? ""} required>
+                    <option value="" disabled>Select billing journal</option>
+                    {activeJournals.map((journal) => (
+                      <option key={journal.id} value={journal.id}>{journal.code} · {journal.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit">Save billing journal</button>
+              </form>
+              <div className="card-list">
               {mappingRoles.map((role) => (
                 <article className="subcard" key={role.role_key}>
                   <div className="row-between">
@@ -447,7 +467,8 @@ export default async function AccountingPage({
                   </form>
                 </article>
               ))}
-            </div>
+              </div>
+            </>
           ) : null}
         </section>
       ) : null}
