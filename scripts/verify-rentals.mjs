@@ -106,7 +106,6 @@ try{
   const agreement=await createAgreement("CI6-RNT-"+suffix,landlord,"2000.00","2026-09-01","2027-02-28","1000.00");
   const schedule=await client.query("select * from rent_schedule where rental_agreement_id=$1 order by sequence",[agreement]);
   assert.equal(schedule.rowCount,6,"Six-month agreement must generate six schedule periods");
-  assert.deepEqual(schedule.rows.map((x)=>x.amount),"2000.00".repeat(0)?[]:schedule.rows.map(()=>schedule.rows[0].amount));
   assert.equal(schedule.rows.every((x)=>x.amount==="2000.00"),true,"Each monthly schedule item must be 2,000.00");
 
   await expectFailure(
