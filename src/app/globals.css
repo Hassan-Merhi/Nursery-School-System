@@ -304,3 +304,37 @@ th { color: var(--muted); font-size: .76rem; text-transform: uppercase; }
   .topbar { align-items: stretch; flex-direction: column; }
   .topbar form, .topbar button { width: 100%; }
 }
+
+.secondary-link {
+  background: #edf0ed;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.secondary-link:hover {
+  background: #e2e7e3;
+  color: var(--ink);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+.record-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: .9rem;
+}
+
+.compact-text {
+  margin: .35rem 0 0;
+}
+
+@media (max-width: 760px) {
+  .record-grid { grid-template-columns: 1fr; }
+  .top-actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .top-actions .button-link, .top-actions form, .top-actions button { width: 100%; }
+}
