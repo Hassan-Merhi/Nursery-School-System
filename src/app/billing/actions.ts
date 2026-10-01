@@ -731,7 +731,7 @@ export async function recordPaymentAction(formData: FormData) {
       if (!student.rowCount) fail("Selected student does not belong to this family.");
     }
 
-    let invoiceBalance: ReturnType<typeof activeInvoiceBalance> extends Promise<infer T> ? T : never | null = null;
+    let invoiceBalance: Awaited<ReturnType<typeof activeInvoiceBalance>> | null = null;
     if (invoiceId) {
       invoiceBalance = await activeInvoiceBalance(client, invoiceId);
       if (invoiceBalance.family_id !== familyId) fail("Invoice belongs to a different family.");
@@ -876,7 +876,7 @@ export async function createCreditNoteAction(formData: FormData) {
   if (!/^[A-Z]{3}$/.test(currency)) fail("Currency must be a three-letter code.");
 
   await withTransaction(async (client) => {
-    let invoiceBalance: ReturnType<typeof activeInvoiceBalance> extends Promise<infer T> ? T : never | null = null;
+    let invoiceBalance: Awaited<ReturnType<typeof activeInvoiceBalance>> | null = null;
     if (invoiceId) {
       invoiceBalance = await activeInvoiceBalance(client, invoiceId);
       if (invoiceBalance.family_id !== familyId) fail("Invoice belongs to a different family.");
