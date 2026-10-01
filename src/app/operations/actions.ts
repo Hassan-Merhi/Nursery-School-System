@@ -50,6 +50,17 @@ export async function createSupplierAction(d:FormData){
   await withTransaction(async c=>{const number=await nextNo(c,"supplier",a.userId);const r=await c.query<{id:string}>("insert into supplier(supplier_number,name,contact_name,email,phone,address,tax_number,default_expense_account_id,default_payment_account_id,payment_terms_days,notes,created_by,updated_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) returning id",[number,name,v(d,"contact_name")||null,v(d,"email")||null,v(d,"phone")||null,v(d,"address")||null,v(d,"tax_number")||null,oid(v(d,"default_expense_account_id"),"default expense account"),oid(v(d,"default_payment_account_id"),"default payment account"),terms,v(d,"notes")||null,a.userId]);await writeAudit(c,{actorUserId:a.userId,action:"supplier_created",entityType:"supplier",entityId:r.rows[0].id,after:{supplierNumber:number,name}});});good("Supplier created.");
 }
 
+export async function updateSupplierAction(d:FormData){
+  const a=await requirePermission("suppliers.manage"),supplier=id(v(d,"supplier_id"),"supplier"),name=v(d,"name"),status=v(d,"status");
+  if(!name)bad("Supplier name is required.");if(!["active","inactive"].includes(status))bad("Invalid supplier status.");
+  const terms=Number.parseInt(v(d,"payment_terms_days")||"0",10);if(!Number.isInteger(terms)||terms<0||terms>3650)bad("Invalid payment terms.");
+  await withTransaction(async c=>{
+    const before=(await c.query("select * from supplier where id=$1 for update",[supplier])).rows[0];if(!before)bad("Supplier not found.");
+    await c.query("update supplier set name=$2,contact_name=$3,email=$4,phone=$5,address=$6,tax_number=$7,default_expense_account_id=$8,default_payment_account_id=$9,payment_terms_days=$10,notes=$11,status=$12,updated_at=now(),updated_by=$13 where id=$1",[supplier,name,v(d,"contact_name")||null,v(d,"email")||null,v(d,"phone")||null,v(d,"address")||null,v(d,"tax_number")||null,oid(v(d,"default_expense_account_id"),"default expense account"),oid(v(d,"default_payment_account_id"),"default payment account"),terms,v(d,"notes")||null,status,a.userId]);
+    await writeAudit(c,{actorUserId:a.userId,action:"supplier_updated",entityType:"supplier",entityId:supplier,before,after:{name,status,paymentTermsDays:terms}});
+  });good("Supplier updated.");
+}
+
 export async function createExpenseAction(d:FormData){
   const a=await requirePermission("expenses.manage"),supplier=oid(v(d,"supplier_id"),"supplier"),expense=id(v(d,"expense_account_id"),"expense account"),payment=id(v(d,"payment_account_id"),"payment account"),amount=amt(v(d,"amount"),"amount"),currency=cur(v(d,"currency")),incurred=day(v(d,"incurred_on"),"expense date"),method=v(d,"payment_method"),cheque=v(d,"cheque_number");
   if(!["cash","card","bank_transfer","check","other"].includes(method))bad("Invalid payment method.");if(method==="check"&&!cheque)bad("Cheque number is required.");
@@ -90,6 +101,19 @@ export async function approveSupplierInvoiceAction(d:FormData){
 export async function postSupplierInvoiceAction(d:FormData){
   const a=await requirePermission("expenses.post"),invoice=id(v(d,"supplier_invoice_id"),"supplier invoice");
   await withTransaction(async c=>{const row=(await c.query<{invoice_date:string;status:string}>("select invoice_date::text,status from supplier_invoice where id=$1 for update",[invoice])).rows[0];if(!row||row.status!=="approved")bad("Only approved supplier invoices can be posted.");await ready(c,row.invoice_date,["accounts_payable"]);await c.query("select accounting_post_supplier_invoice($1,$2)",[invoice,a.userId]);await writeAudit(c,{actorUserId:a.userId,action:"supplier_invoice_posted",entityType:"supplier_invoice",entityId:invoice,after:{status:"posted"}});});good("Supplier invoice posted.");
+}
+
+export async function reverseSupplierInvoiceAction(d:FormData){
+  const a=await requirePermission("expenses.post"),invoice=id(v(d,"supplier_invoice_id"),"supplier invoice"),rd=day(v(d,"reversal_date"),"reversal date"),reason=v(d,"reason");if(!reason)bad("Reversal reason is required.");
+  await withTransaction(async c=>{
+    await openPeriod(c,rd);
+    const before=(await c.query("select * from supplier_invoice_balance where id=$1 for update",[invoice])).rows[0];
+    if(!before||before.status!=="posted")bad("Only an unpaid posted supplier invoice can be reversed.");
+    if(Number(before.balance_amount)!==Number(before.amount))bad("Reverse supplier payments or credits before reversing the invoice.");
+    await c.query("select reverse_operational_source('supplier_invoice',$1,$2,$3,$4)",[invoice,rd,a.userId,reason]);
+    await c.query("update supplier_invoice set status='reversed',reversed_at=now(),reversed_by=$2,reversal_reason=$3,updated_at=now(),updated_by=$2 where id=$1",[invoice,a.userId,reason]);
+    await writeAudit(c,{actorUserId:a.userId,action:"supplier_invoice_reversed",entityType:"supplier_invoice",entityId:invoice,before,after:{status:"reversed",reason,reversalDate:rd}});
+  });good("Supplier invoice reversed.");
 }
 
 export async function paySupplierInvoiceAction(d:FormData){
