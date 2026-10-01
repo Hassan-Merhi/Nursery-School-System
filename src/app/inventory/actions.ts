@@ -46,6 +46,20 @@ export async function configureInventoryMappingAction(d:FormData){
   good("Inventory accounting mapping saved.");
 }
 
+export async function createInventoryUnitAction(d:FormData){
+  const a=await requirePermission("inventory.manage");
+  const unitCode=v(d,"code").toUpperCase(),name=v(d,"name"),rawDecimals=v(d,"decimal_places")||"3";
+  if(!/^[A-Z0-9][A-Z0-9_-]{0,11}$/.test(unitCode))bad("Unit code must be 1–12 characters using letters, numbers, hyphens or underscores.");
+  if(!name)bad("Unit name is required.");
+  const decimals=Number(rawDecimals);
+  if(!Number.isInteger(decimals)||decimals<0||decimals>6)bad("Decimal places must be a whole number from 0 to 6.");
+  await withTransaction(async c=>{
+    const r=await c.query<{id:string}>("insert into inventory_unit(code,name,decimal_places) values ($1,$2,$3) returning id",[unitCode,name,decimals]);
+    await writeAudit(c,{actorUserId:a.userId,action:"inventory_unit_created",entityType:"inventory_unit",entityId:r.rows[0].id,after:{code:unitCode,name,decimalPlaces:decimals}});
+  });
+  good("Inventory unit created.");
+}
+
 export async function createIngredientAction(d:FormData){
   const a=await requirePermission("inventory.manage");
   const ingredientCode=code(v(d,"code"),"Ingredient code"),name=v(d,"name"),unit=id(v(d,"unit_id"),"unit"),reorder=qty(v(d,"reorder_level")||"0","reorder level",true);
