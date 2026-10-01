@@ -1150,7 +1150,7 @@ end;
 $$;
 
 create or replace function complete_bank_reconciliation(p_reconciliation_id uuid,p_user_id uuid default null)
-returns void language plpgsql as $
+returns void language plpgsql as $$
 declare
   v_difference numeric;
   v_status text;
@@ -1171,7 +1171,7 @@ begin
   set status='completed',completed_at=now(),completed_by=p_user_id
   where id=p_reconciliation_id;
 end;
-$;
+$$;
 
 insert into permission(key,description) values
   ('expenses.view','View expenses and expense receipts'),
