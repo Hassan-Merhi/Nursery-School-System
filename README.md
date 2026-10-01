@@ -281,4 +281,141 @@ CI creates a six-month rental agreement at 2,000 per month, prepays 12,000, and 
 The verification also covers unpaid rent becoming Rent Payable, later payment clearing that payable, refundable deposits, payment reversals, recognition reversals, protected attachments, immutable activated terms, and append-only rental history.
 
 The Step 6 workspace is available at `/rentals` to authorized users.
-\n
+
+## Step 7 — Employees, Payroll & Salary Advances
+
+Implemented:
+
+- Employee records and job-title maintenance
+- Append-only salary agreements with effective dates and derived salary history periods
+- Monthly salary snapshots copied into each payroll run
+- Allowances, bonuses, and deductions while payroll is still draft
+- Salary advances paid from configured cash/bank accounts
+- Immutable monthly advance repayment schedules
+- Automatic application of all due advance installments when payroll is locked
+- Payroll runs with draft, pending, approved, locked, and paid states
+- Separate submit, approval, lock, and payment permissions
+- Locked payroll snapshots that cannot be rewritten after posting
+- Printable/viewable payslips generated from locked payroll data
+- Salary Payable accounting and payroll expense posting
+- Payroll payments from configured cash/bank accounts
+- Payroll payment reversals that reopen the run only to the locked state
+- Employee payroll ledger combining salary advances, payroll, repayments, payable, and paid salary
+- Payroll summary reporting
+- Fine-grained permissions for employees, payroll, approvals, locking, payments, and advances
+- CI verification for the complete Milestone 7 scenario
+
+### Salary history rule
+
+Salary history is append-only. Existing salary agreements cannot be updated or deleted.
+
+If an employee changes from 800 per month to 1,000 per month, the system stores two effective salary agreements. The earlier 800 agreement remains part of history, while the later 1,000 agreement becomes effective from its own start date. Payroll runs store the exact salary-agreement snapshot they used, so later raises never rewrite older payroll.
+
+### Payroll accounting flow
+
+Payroll uses three explicit user-configured account roles:
+
+- Payroll Expense — expense
+- Salary Payable — liability
+- Salary Advances — asset
+
+Issuing a salary advance posts:
+
+- Debit Salary Advances
+- Credit Cash/Bank
+
+Locking payroll posts the salary cost and the employee liabilities. Allowances and bonuses increase gross payroll; ordinary payroll deductions reduce payroll expense; due salary-advance repayments reduce the Salary Advances asset; the remaining employee net pay becomes Salary Payable.
+
+Paying the locked payroll posts:
+
+- Debit Salary Payable
+- Credit Cash/Bank
+
+Posted payroll journals are never edited. Payment reversals create reversing journal entries and return the payroll run to the locked state so it can be paid again correctly.
+
+### Milestone 7 verification
+
+CI creates multiple employees and verifies a salary change from 800 to 1,000 without losing the original salary period. It then runs September and October payroll scenarios including:
+
+- Normal salary
+- Allowance
+- Bonus
+- Deduction
+- Two separate salary advances
+- Two advance repayments applied in the same payroll run
+- Payroll submission and approval
+- Payroll locking
+- Salary Payable
+- Bank payment
+- Employee payroll ledger
+- Payroll summary
+- Balanced general ledger
+
+The October milestone expects:
+
+- Gross payroll: 3,000.00
+- Deductions: 100.00
+- Payroll expense: 2,900.00
+- Salary-advance repayments: 250.00
+- Net Salary Payable/payment: 2,650.00
+- Salary Payable after payment: 0.00
+- Remaining salary advances: 250.00
+
+The Step 7 workspace is available at \`/payroll\` to authorized users. Locked payroll items expose payslips under \`/payroll/payslips/[id]\`.
+
+## Step 8 — Net Position, Management & Reports
+
+Implemented:
+
+- Management dashboard for active students, fees due, collected tuition, outstanding receivables, cash, bank, expenses, rent due, payroll due, prepayments, and net position
+- Date-range reporting with historical as-of balances so later transactions do not rewrite earlier reports
+- Currency-aware reporting that never adds unrelated currencies into one total
+- General Ledger with account running balances
+- Trial Balance as of any selected date
+- Profit & Loss for any selected period
+- Balance Sheet / Net Position with an accounting-equation control
+- Direct Cash Flow based on posted cash and bank journal movements
+- Accounts Receivable and Accounts Payable as-of reports
+- Expense and income reports
+- Student, family, enrollment, fee, discount, outstanding-balance, and prepayment reports
+- Salary history, payroll-run, employee-cost, and salary-advance reports from the Step 7 payroll ledger
+- Printable invoices, payment receipts, family statements, payslips, expense vouchers, and supplier statements
+- Permission-controlled CSV exports with spreadsheet-formula protection
+- Dedicated management/report permissions automatically granted to the built-in Administrator role
+- CI reconciliation for the October 2026 Milestone 8 sample period
+
+### Reporting integrity rules
+
+Financial reports read posted and reversed journal entries; draft journals never enter management totals. Balance reports are computed **as of** the selected end date, while Profit & Loss and cash flow use the selected date range. Student receivables, supplier payables, parent credits, rent payable, and salary payable are derived from the source ledgers and posted accounting rather than maintained as duplicate management balances.
+
+All financial totals remain separated by currency. The management layer does not invent a converted grand total unless an explicit exchange-rate system is added later.
+
+Historical snapshots are protected from later administrative changes: active-student counts use the actual term-enrollment window rather than today's student/enrollment status, deactivated cash or bank accounts remain visible in prior-period balances, and reversed source records use the accounting reversal posting date when deciding which period the reversal affects.
+
+“Expected fees” means issued invoice amounts due inside the selected period. “Collected fees” means parent payments received inside the selected period and allocated to invoices by the report end date. Unallocated parent money stays visible separately as prepayments, so it is not double-counted as tuition collected.
+
+### Milestone 8 — October 2026 reconciliation
+
+CI builds an independent October 2026 sample period and checks the management reports against known manual totals. On the complete Step 7 + Step 8 stack it verifies:
+
+- Active students: 2
+- Expected fees due: USD 2,000.00
+- Collected fees allocated to invoices: USD 1,400.00
+- Student receivables: USD 600.00
+- Parent prepayment: USD 100.00
+- Bank: USD 1,100.00
+- Cash: USD 100.00
+- Rent due: USD 500.00
+- Payroll due: USD 700.00
+- Total expenses: USD 1,500.00
+- Income: USD 2,000.00
+- Assets: USD 1,800.00
+- Liabilities: USD 1,300.00
+- Current surplus / net position: USD 500.00
+- Trial balance debits: USD 3,300.00
+- Trial balance credits: USD 3,300.00
+- Accounting equation difference: USD 0.00
+- Net cash movement: USD 1,200.00
+
+The Step 8 workspace is available at `/reports` to authorized users.
+
