@@ -29,12 +29,17 @@ jobs:
       STORAGE_DIR: ./data/uploads
       MAX_UPLOAD_BYTES: 10485760
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       - run: npm install --no-audit --no-fund
       - run: npm run db:migrate
-      - run: node --check scripts/seed-admin.mjs
+      - name: Verify bootstrap administrator
+        run: |
+          PASSWORD="CiOnly$(openssl rand -hex 16)Aa1"
+          npm run db:seed-admin -- --email=ci-admin@example.invalid --name="CI Administrator" --password="$PASSWORD"
+      - run: node scripts/verify-foundation.mjs
       - run: npm run typecheck
       - run: npm run build
