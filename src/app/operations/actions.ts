@@ -117,9 +117,10 @@ export async function reverseSupplierInvoiceAction(d:FormData){
   const a=await requirePermission("expenses.post"),invoice=id(v(d,"supplier_invoice_id"),"supplier invoice"),rd=day(v(d,"reversal_date"),"reversal date"),reason=v(d,"reason");if(!reason)bad("Reversal reason is required.");
   await withTransaction(async c=>{
     await openPeriod(c,rd);
-    const before=(await c.query("select * from supplier_invoice_balance where id=$1 for update",[invoice])).rows[0];
+    const before=(await c.query("select * from supplier_invoice where id=$1 for update",[invoice])).rows[0];
     if(!before||before.status!=="posted")bad("Only an unpaid posted supplier invoice can be reversed.");
-    if(Number(before.balance_amount)!==Number(before.amount))bad("Reverse supplier payments or credits before reversing the invoice.");
+    const balance=(await c.query<{balance_amount:string}>("select balance_amount::text from supplier_invoice_balance where id=$1",[invoice])).rows[0];
+    if(!balance||Number(balance.balance_amount)!==Number(before.amount))bad("Reverse supplier payments or credits before reversing the invoice.");
     await c.query("select reverse_operational_source('supplier_invoice',$1,$2,$3,$4)",[invoice,rd,a.userId,reason]);
     await c.query("update supplier_invoice set status='reversed',reversed_at=now(),reversed_by=$2,reversal_reason=$3,updated_at=now(),updated_by=$2 where id=$1",[invoice,a.userId,reason]);
     await writeAudit(c,{actorUserId:a.userId,action:"supplier_invoice_reversed",entityType:"supplier_invoice",entityId:invoice,before,after:{status:"reversed",reason,reversalDate:rd}});
