@@ -32,6 +32,7 @@ try{
   }
 
   const inventoryAsset=await account("CI-INV","CI Food Inventory","asset");
+  const alternateInventoryAsset=await account("CI-INV-ALT","CI Alternate Food Inventory","asset");
   const foodExpense=await account("CI-FOOD-COST","CI Food Program Expense","expense");
   const ap=await account("CI-AP","CI Accounts Payable","liability");
   const ar=await account("CI-AR","CI Accounts Receivable","asset");
@@ -57,6 +58,8 @@ try{
 
   const supplier=(await client.query("insert into supplier(supplier_number,name,payment_terms_days,status) values ($1,'CI Food Supplier',14,'active') returning id",["SUP-"+suffix])).rows[0].id;
   const kg=(await client.query("select id from inventory_unit where code='KG'")).rows[0].id;
+  const customUnit=(await client.query("insert into inventory_unit(code,name,decimal_places) values ($1,'CI Crate',0) returning id",["CRATE-"+suffix])).rows[0].id;
+  assert.ok(customUnit,"Custom inventory units must be supported");
   const rice=(await client.query("insert into ingredient(code,name,unit_id,reorder_level,status) values ($1,'CI Rice',$2,10,'active') returning id",["RICE-"+suffix,kg])).rows[0].id;
 
   await expectFailure("Normal supplier invoices must still reject asset accounts",()=>client.query(
@@ -69,6 +72,10 @@ try{
   await client.query("select submit_food_purchase_order($1,null)",[po]);
   assert.equal((await client.query("select status from food_purchase_order where id=$1",[po])).rows[0].status,"ordered");
   await expectFailure("Ordered PO lines must be immutable",()=>client.query("update food_purchase_order_line set quantity_ordered=55 where purchase_order_id=$1",[po]));
+  await expectFailure("Receipt date cannot precede its purchase order",()=>client.query(
+    "insert into inventory_receipt(receipt_number,supplier_id,purchase_order_id,received_on,currency) values ($1,$2,$3,'2026-09-30','USD')",
+    ["EARLY-"+suffix,supplier,po],
+  ));
 
   async function createReceipt(number,quantity,cost,date="2026-10-02",purchaseOrder=po,ingredient=rice){
     const receipt=(await client.query("insert into inventory_receipt(receipt_number,supplier_id,purchase_order_id,received_on,currency) values ($1,$2,$3,$4,'USD') returning id",[number,supplier,purchaseOrder,date])).rows[0].id;
@@ -83,6 +90,10 @@ try{
   assert.equal(stock.inventory_value,"40.00");
   assert.equal(stock.average_unit_cost,"2.0000");
   assert.equal((await client.query("select status from food_purchase_order where id=$1",[po])).rows[0].status,"partially_received");
+  await expectFailure("Inventory Asset mapping cannot change while stock is on hand",()=>client.query(
+    "update accounting_mapping set account_id=$1 where role_key='inventory_asset'",
+    [alternateInventoryAsset],
+  ));
 
   const invoiceRow=(await client.query("select status,amount::text,inventory_receipt_id from supplier_invoice where id=$1",[invoice1])).rows[0];
   assert.equal(invoiceRow.status,"posted");
