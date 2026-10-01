@@ -18,7 +18,7 @@
     "verify:operations": "node scripts/verify-operations.mjs",
     "verify:rentals": "node scripts/verify-rentals.mjs",
     "verify:payroll": "node scripts/verify-payroll.mjs",
-    "verify:reports": "node scripts/verify-reports.mjs",
+    "verify:reports": "node scripts/verify-reports.mjs && node scripts/verify-release.mjs && sh scripts/verify-backup-restore.sh",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:backup-restore": "sh scripts/verify-backup-restore.sh",
     "release:gate": "node scripts/release-gate.mjs"
