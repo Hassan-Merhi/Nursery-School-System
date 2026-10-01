@@ -11,7 +11,7 @@ function money(amount:unknown,currency:string){
 
 export default async function ReceiptPage({params}:{params:Promise<{id:string}>}){
   const auth=await requireUser();
-  if(!["payments.view","payments.manage","report_documents.view"].some((p)=>auth.permissions.includes(p)))redirect("/forbidden");
+  if(!["payments.view","payments.manage","report_documents.view","food.view","food.payments"].some((p)=>auth.permissions.includes(p)))redirect("/forbidden");
   const {id}=await params;
   const payment=(await query<any>(
     `select p.*,f.family_number,f.display_name as family_name,
@@ -24,15 +24,27 @@ export default async function ReceiptPage({params}:{params:Promise<{id:string}>}
      where p.id=$1`,[id])).rows[0];
   if(!payment)notFound();
   const allocations=(await query<any>(
-    `select pa.amount,pa.allocated_on,i.invoice_number,
-       concat_ws(' ',s.first_name,s.last_name) as student_name
+    `select pa.amount,pa.allocated_on,'Tuition'::text as allocation_type,
+       i.invoice_number as document_number,
+       concat_ws(' ',s.first_name,s.last_name) as student_name,
+       pa.created_at
      from payment_allocation pa
      join invoice i on i.id=pa.invoice_id
      join student s on s.id=i.student_id
-     where pa.payment_id=$1 order by pa.allocated_on,pa.created_at`,[id])).rows;
+     where pa.payment_id=$1
+     union all
+     select fa.amount,fa.allocated_on,'Food'::text,
+       b.bill_number,
+       concat_ws(' ',s.first_name,s.last_name),
+       fa.created_at
+     from food_payment_allocation fa
+     join food_bill b on b.id=fa.food_bill_id
+     join student s on s.id=b.student_id
+     where fa.payment_id=$1
+     order by allocated_on,created_at`,[id])).rows;
 
   return <main className="app-shell">
-    <header className="topbar no-print"><div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payment receipt</h1></div><div className="top-actions"><Link className="button-link secondary-link" href="/billing">Back to billing</Link></div></header>
+    <header className="topbar no-print"><div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payment receipt</h1></div><div className="top-actions"><Link className="button-link secondary-link" href="/billing">Billing</Link><Link className="button-link secondary-link" href="/food">Food</Link></div></header>
     <section className="panel receipt-sheet">
       <div className="row-between"><div><p className="eyebrow">Official receipt</p><h1>{payment.receipt_number}</h1></div><div><strong>{money(payment.amount,payment.currency)}</strong><div className="muted">{String(payment.received_on).slice(0,10)}</div></div></div>
       <hr/>
@@ -48,9 +60,9 @@ export default async function ReceiptPage({params}:{params:Promise<{id:string}>}
       {payment.reference?<p><strong>Reference:</strong> {payment.reference}</p>:null}
       {payment.notes?<p><strong>Notes:</strong> {payment.notes}</p>:null}
       <h2>Allocation</h2>
-      <div className="table-wrap"><table><thead><tr><th>Invoice</th><th>Student</th><th>Date</th><th>Applied</th></tr></thead><tbody>
-        {allocations.map((x:any)=><tr key={x.invoice_number}><td>{x.invoice_number}</td><td>{x.student_name}</td><td>{String(x.allocated_on).slice(0,10)}</td><td>{money(x.amount,payment.currency)}</td></tr>)}
-        {!allocations.length?<tr><td colSpan={4}>No invoice allocation — funds remain as parent credit/prepayment.</td></tr>:null}
+      <div className="table-wrap"><table><thead><tr><th>Type</th><th>Document</th><th>Student</th><th>Date</th><th>Applied</th></tr></thead><tbody>
+        {allocations.map((x:any)=><tr key={x.allocation_type+"-"+x.document_number}><td>{x.allocation_type}</td><td>{x.document_number}</td><td>{x.student_name}</td><td>{String(x.allocated_on).slice(0,10)}</td><td>{money(x.amount,payment.currency)}</td></tr>)}
+        {!allocations.length?<tr><td colSpan={5}>No tuition or food allocation — funds remain as parent credit/prepayment.</td></tr>:null}
       </tbody></table></div>
       <div className="record-grid"><div><small>Allocated</small><strong>{money(payment.allocated_amount,payment.currency)}</strong></div><div><small>Available credit</small><strong>{money(payment.unallocated_amount,payment.currency)}</strong></div><div><small>Total received</small><strong>{money(payment.amount,payment.currency)}</strong></div></div>
       {payment.status==="reversed"?<div className="notice error">REVERSED · {payment.reversal_reason||"Payment reversed"}</div>:null}
