@@ -859,28 +859,33 @@ join account a on a.id=c.account_id
 left join account_balance ab on ab.account_id=c.account_id;
 
 create or replace view supplier_statement as
+with activity as (
+  select
+    i.supplier_id,i.currency,i.invoice_date as entry_date,i.created_at as occurred_at,
+    'invoice'::text as entry_type,i.id as source_id,i.supplier_invoice_number as reference,
+    coalesce(i.supplier_reference,'Supplier invoice') as description,
+    i.amount::numeric(14,2) as payable_increase,0::numeric(14,2) as payable_decrease
+  from supplier_invoice i
+  where i.status not in ('draft','approved','reversed')
+  union all
+  select
+    p.supplier_id,p.currency,p.paid_on,p.created_at,'payment',p.id,p.supplier_payment_number,
+    coalesce(p.notes,'Supplier payment'),0::numeric(14,2),p.amount::numeric(14,2)
+  from supplier_payment p where p.status='posted'
+  union all
+  select
+    c.supplier_id,c.currency,c.credited_on,c.created_at,'credit',c.id,c.supplier_credit_number,
+    c.reason,0::numeric(14,2),c.amount::numeric(14,2)
+  from supplier_credit c where c.status='posted'
+)
 select
-  i.supplier_id,
-  i.invoice_date as entry_date,
-  i.created_at as occurred_at,
-  'invoice'::text as entry_type,
-  i.id as source_id,
-  i.supplier_invoice_number as reference,
-  coalesce(i.supplier_reference,'Supplier invoice') as description,
-  i.amount::numeric(14,2) as payable_increase,
-  0::numeric(14,2) as payable_decrease
-from supplier_invoice i
-where i.status not in ('draft','approved','reversed')
-union all
-select
-  p.supplier_id,p.paid_on,p.created_at,'payment',p.id,p.supplier_payment_number,
-  coalesce(p.notes,'Supplier payment'),0::numeric(14,2),p.amount::numeric(14,2)
-from supplier_payment p where p.status='posted'
-union all
-select
-  c.supplier_id,c.credited_on,c.created_at,'credit',c.id,c.supplier_credit_number,
-  c.reason,0::numeric(14,2),c.amount::numeric(14,2)
-from supplier_credit c where c.status='posted';
+  a.*,
+  sum(a.payable_increase-a.payable_decrease) over (
+    partition by a.supplier_id,a.currency
+    order by a.entry_date,a.occurred_at,a.source_id
+    rows between unbounded preceding and current row
+  )::numeric(14,2) as running_payable_balance
+from activity a;
 
 create or replace function accounting_operations_journal()
 returns uuid
