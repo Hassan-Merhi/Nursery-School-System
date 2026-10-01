@@ -107,6 +107,26 @@ async function activeInvoiceBalance(client: PoolClient, invoiceId: string) {
   return row;
 }
 
+async function requireOpenSchoolTerm(client: PoolClient, termId: string) {
+  const result = await client.query<{
+    school_year_id: string;
+    term_status: string;
+    year_status: string;
+  }>(
+    `select t.school_year_id,t.status as term_status,y.status as year_status
+     from school_term t
+     join school_year y on y.id=t.school_year_id
+     where t.id=$1`,
+    [termId],
+  );
+  const row = result.rows[0];
+  if (!row) fail("Term not found.");
+  if (row.term_status === "closed" || row.year_status === "closed") {
+    fail("This school term is closed to new billing changes.");
+  }
+  return row;
+}
+
 async function requireOpenAccountingPeriod(client: PoolClient, postingDate: string) {
   const period = await client.query(
     `select 1
@@ -162,18 +182,14 @@ export async function createFeeScheduleAction(formData: FormData) {
   if (!/^[A-Z]{3}$/.test(currency)) fail("Currency must be a three-letter code.");
 
   await withTransaction(async (client) => {
-    const term = await client.query<{ school_year_id: string }>(
-      "select school_year_id from school_term where id=$1",
-      [termId],
-    );
-    if (!term.rowCount) fail("Term not found.");
+    const term = await requireOpenSchoolTerm(client, termId);
 
     const inserted = await client.query<{ id: string }>(
       `insert into fee_schedule(
          school_year_id,term_id,name,standard_fee,currency,created_by
        ) values ($1,$2,$3,$4,$5,$6)
        returning id`,
-      [term.rows[0].school_year_id, termId, name, standardFee, currency, auth.userId],
+      [term.school_year_id, termId, name, standardFee, currency, auth.userId],
     );
 
     await writeAudit(client, {
@@ -200,6 +216,7 @@ export async function activateFeeScheduleAction(formData: FormData) {
     const row = schedule.rows[0];
     if (!row) fail("Fee schedule not found.");
     if (row.status === "archived") fail("Archived fee schedules cannot be reactivated.");
+    await requireOpenSchoolTerm(client, row.term_id);
 
     await client.query(
       `update fee_schedule
@@ -277,6 +294,7 @@ export async function requestDiscountAction(formData: FormData) {
   if (!definitionCode) fail("Select a discount type.");
 
   await withTransaction(async (client) => {
+    await requireOpenSchoolTerm(client, termId);
     const scope = await client.query<{
       school_year_id: string;
       family_id: string;
@@ -424,6 +442,7 @@ export async function reviewDiscountAction(formData: FormData) {
     const row = current.rows[0];
     if (!row) fail("Discount not found.");
     if (row.status !== "pending") fail("Only pending discounts can be reviewed.");
+    if (decision === "approved") await requireOpenSchoolTerm(client, row.term_id);
 
     await client.query(
       `update student_discount
@@ -502,6 +521,7 @@ export async function generateTermInvoiceAction(formData: FormData) {
   const notes = value(formData, "notes");
 
   await withTransaction(async (client) => {
+    await requireOpenSchoolTerm(client, termId);
     const target = await client.query<{
       family_id: string;
       school_year_id: string;
@@ -648,14 +668,15 @@ export async function addInvoiceChargeAction(formData: FormData) {
   if (!description) fail("Charge description is required.");
 
   await withTransaction(async (client) => {
-    const invoice = await client.query<{ status: string }>(
-      "select status from invoice where id=$1 for update",
+    const invoice = await client.query<{ status: string; term_id: string }>(
+      "select status,term_id from invoice where id=$1 for update",
       [invoiceId],
     );
     if (!invoice.rowCount) fail("Invoice not found.");
     if (invoice.rows[0].status !== "draft") {
       fail("Additional charges can only be added before an invoice is issued.");
     }
+    await requireOpenSchoolTerm(client, invoice.rows[0].term_id);
 
     const inserted = await client.query<{ id: string }>(
       `insert into invoice_line(invoice_id,line_type,description,gross_amount,created_by)
@@ -685,13 +706,15 @@ export async function issueInvoiceAction(formData: FormData) {
       status: string;
       invoice_number: string;
       total_amount: string;
+      term_id: string;
     }>(
-      "select status,invoice_number,total_amount::text from invoice where id=$1 for update",
+      "select status,invoice_number,total_amount::text,term_id from invoice where id=$1 for update",
       [invoiceId],
     );
     const row = invoice.rows[0];
     if (!row) fail("Invoice not found.");
     if (row.status !== "draft") fail("Only draft invoices can be issued.");
+    await requireOpenSchoolTerm(client, row.term_id);
 
     const lines = await client.query("select 1 from invoice_line where invoice_id=$1 limit 1", [invoiceId]);
     if (!lines.rowCount) fail("Cannot issue an invoice with no lines.");
