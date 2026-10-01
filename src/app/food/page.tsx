@@ -32,7 +32,7 @@ function dateText(value:unknown){return value?String(value).slice(0,10):"—";}
 export default async function FoodPage({searchParams}:{searchParams:Promise<{error?:string;success?:string}>}){
   const auth=await requireUser();
   const can=(p:string)=>auth.permissions.includes(p);
-  if(!["food.view","food.manage","food.billing","food.payments","accounting.mapping"].some(can))redirect("/forbidden");
+  if(!["food.view","food.manage","food.billing","food.payments"].some(can))redirect("/forbidden");
   const {error,success}=await searchParams;
   const today=new Date().toISOString().slice(0,10);
 

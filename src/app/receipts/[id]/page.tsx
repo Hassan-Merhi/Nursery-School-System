@@ -11,8 +11,14 @@ function money(amount:unknown,currency:string){
 
 export default async function ReceiptPage({params}:{params:Promise<{id:string}>}){
   const auth=await requireUser();
-  if(!["payments.view","payments.manage","report_documents.view","food.view","food.payments"].some((p)=>auth.permissions.includes(p)))redirect("/forbidden");
+  const canGeneral=["payments.view","payments.manage","report_documents.view"].some((p)=>auth.permissions.includes(p));
+  const canFood=["food.view","food.payments"].some((p)=>auth.permissions.includes(p));
+  if(!canGeneral&&!canFood)redirect("/forbidden");
   const {id}=await params;
+  if(!canGeneral){
+    const hasFood=(await query("select 1 from food_payment_allocation where payment_id=$1 limit 1",[id])).rowCount;
+    if(!hasFood)redirect("/forbidden");
+  }
   const payment=(await query<any>(
     `select p.*,f.family_number,f.display_name as family_name,
        s.student_number,concat_ws(' ',s.first_name,s.last_name) as student_name,
