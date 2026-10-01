@@ -221,7 +221,7 @@ as $$
       else round((e.period_amount-p.amount)*100.0/p.amount,2)::numeric(9,2)
     end
   from enriched e join prior p on p.account_id=e.account_id
-  order by e.currency,e.period_amount desc,e.account_code,e.month_start;
+  order by e.currency,e.period_amount desc,e.code,e.month_start;
 $$;
 
 create or replace function analytics_payroll_trend(p_from date,p_to date)
