@@ -32,9 +32,11 @@ export async function GET(
     return new Response(bytes, {
       headers: {
         "Content-Type": document.mime_type,
-        "Content-Disposition": `inline; filename="${safeName}"`,
+        "Content-Disposition": `attachment; filename="${safeName}"`,
         "Content-Length": String(bytes.length),
         "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
       },
     });
   } catch {
