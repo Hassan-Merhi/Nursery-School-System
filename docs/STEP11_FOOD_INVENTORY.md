@@ -4,7 +4,7 @@ Step 11 adds a deliberately simple food-stock layer on top of Step 10 food billi
 
 ## What is included
 
-- Ingredient master with base units and reorder levels
+- Ingredient master with built-in and custom base units plus editable reorder levels
 - Purchase orders with draft, ordered, partially received, received and cancelled states
 - Stock receipts, including partial receipts against a purchase order
 - Existing supplier integration and supplier payables
@@ -46,6 +46,8 @@ This avoids double-counting food cost while ingredients are still on hand.
 - Supplier credits against inventory receipts are blocked until a future stock-return workflow exists.
 - A receipt or stock-in correction cannot be reversed after later movements for that ingredient, because that would make moving-average valuation ambiguous.
 - Receipt, adjustment and reversal dates must be inside an open accounting period.
+- Purchase-order receipts cannot be dated before the purchase order.
+- The Inventory Asset mapping cannot be switched while stock is on hand, preventing the inventory subledger from splitting across asset accounts.
 
 ## Setup
 
