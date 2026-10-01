@@ -472,37 +472,6 @@ create trigger supplier_credit_refresh
 after insert or update of status on supplier_credit
 for each row execute function refresh_supplier_invoice_after_activity();
 
-create or replace view family_credit_balance as
-select
-  f.id as family_id,
-  coalesce(p.unallocated_payments,0)::numeric(14,2) as unallocated_payments,
-  coalesce(c.unallocated_credits,0)::numeric(14,2) as unallocated_credits,
-  coalesce(r.refunded_amount,0)::numeric(14,2) as refunded_amount,
-  (
-    coalesce(p.unallocated_payments,0)
-    + coalesce(c.unallocated_credits,0)
-    - coalesce(r.refunded_amount,0)
-  )::numeric(14,2) as available_credit
-from family f
-left join (
-  select family_id,sum(unallocated_amount) as unallocated_payments
-  from payment_balance where status='posted'
-  group by family_id
-) p on p.family_id=f.id
-left join (
-  select family_id,sum(unallocated_amount) as unallocated_credits
-  from credit_note_balance where status='issued'
-  group by family_id
-) c on c.family_id=f.id
-left join (
-  select family_id,sum(amount) as refunded_amount
-  from parent_refund where false
-  group by family_id
-) r on false;
-
--- parent_refund is created after the preliminary view; replace the view below once the table exists.
-drop view family_credit_balance;
-
 create table parent_refund (
   id uuid primary key default gen_random_uuid(),
   refund_number text not null unique,
