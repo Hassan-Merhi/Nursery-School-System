@@ -390,6 +390,8 @@ Financial reports read posted and reversed journal entries; draft journals never
 
 All financial totals remain separated by currency. The management layer does not invent a converted grand total unless an explicit exchange-rate system is added later.
 
+Historical snapshots are protected from later administrative changes: active-student counts use the actual term-enrollment window rather than today's student/enrollment status, deactivated cash or bank accounts remain visible in prior-period balances, and reversed source records use the accounting reversal posting date when deciding which period the reversal affects.
+
 “Expected fees” means issued invoice amounts due inside the selected period. “Collected fees” means parent payments received inside the selected period and allocated to invoices by the report end date. Unallocated parent money stays visible separately as prepayments, so it is not double-counted as tuition collected.
 
 ### Milestone 8 — October 2026 reconciliation
