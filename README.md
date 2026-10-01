@@ -464,6 +464,32 @@ npm run verify:food
 The food workspace is available at \`/food\` to authorized users. Before issuing the first food bill, configure the \`food_income\` accounting mapping. The existing billing journal and Accounts Receivable / Customer Deposits mappings remain the control accounts for student financial activity.
 
 
+## Step 12 — Notifications & Automation
+
+Implemented:
+
+- Fee due notices and separate overdue/outstanding fee alerts sourced from live invoice balances
+- Rent-due alerts sourced from rental schedules and outstanding rent
+- Supplier-payment reminders sourced from posted supplier invoice balances
+- Payroll reminders based on payroll pay dates and payment status
+- Term-start reminders based on the school-year calendar
+- Low-food-inventory integration without duplicating inventory balances
+- Rental-contract expiry reminders
+- Employee-document expiry tracking and reminders
+- Configurable lead times, severity, and enable/disable controls
+- Deduplicated notification lifecycle with open, snoozed, acknowledged, dismissed, and automatically resolved states
+- Same-day source-condition resolution on the next automation run
+- Permission-controlled Notification Center at `/notifications`
+- Manual refresh, protected HTTP automation endpoint, and command-line scheduler runner
+- CI verification for notification generation, idempotency, resolution, permissions, and inventory integration compatibility
+
+Notifications are derived from the existing operational records rather than storing a second financial truth. The automation runner can be scheduled with `npm run notifications:run`, or an external scheduler can POST to `/api/automation/notifications` using the configured `AUTOMATION_SECRET`.
+
+Step 11 inventory remains the owner of stock quantities. Step 12 consumes the optional `inventory_low_stock_notification_source` view when it exists, so low-stock alerts activate without coupling the notification engine to an unfinished or duplicate inventory model.
+
+See [docs/STEP12_NOTIFICATIONS.md](docs/STEP12_NOTIFICATIONS.md) for deployment, scheduling, lifecycle, and inventory-integration details.
+
+
 ## Step 11 — Food Inventory & Purchasing
 
 Implemented on the Step 11 branch:
