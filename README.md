@@ -434,3 +434,31 @@ npm run release:gate -- --through=YYYY-MM-DD
 The release gate must report zero difference for student receivables, family credits, supplier payables, cash, bank, payroll accounting, net position, and the trial balance. Closed school terms reject new academic and billing activity at the database layer while preserving settlement, reversal, and historical reporting.
 
 See `docs/RELEASE1_HARDENING.md` for the complete launch procedure and operator UAT checklist.
+
+
+## Release 2 — Step 10: Food packages & student food billing
+
+Step 10 adds an operational food module without weakening the Release 1 tuition invoice rules. Food bills are separate documents, but they share the same family/student financial ecosystem.
+
+Included:
+
+- Food item catalog with dated, non-overlapping price history.
+- Daily, weekly, monthly, and term food packages.
+- Immutable activated package pricing and package contents.
+- Term-aware student food selections with package-price snapshots.
+- Draft/issue/void food bills with immutable issued lines.
+- Normal school payment receipts for food collections.
+- Allocation of existing parent payments/prepayments and transferable family credits to food bills.
+- Combined allocation controls so the same parent funds cannot be spent twice across tuition and food.
+- Food Income accounting mapping with automatic Accounts Receivable posting.
+- Food activity in family/student ledgers, receivables reporting, family-credit reporting, and the Release 1 reconciliation gate.
+- Closed-term protection, audit logging, fine-grained permissions, and CI verification.
+
+Run the Step 10 verification after migrations:
+
+~~~bash
+npm run db:migrate
+npm run verify:food
+~~~
+
+The food workspace is available at \`/food\` to authorized users. Before issuing the first food bill, configure the \`food_income\` accounting mapping. The existing billing journal and Accounts Receivable / Customer Deposits mappings remain the control accounts for student financial activity.

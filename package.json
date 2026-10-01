@@ -21,7 +21,8 @@
     "verify:reports": "node scripts/verify-reports.mjs && node scripts/verify-release.mjs && sh scripts/verify-backup-restore.sh",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:backup-restore": "sh scripts/verify-backup-restore.sh",
-    "release:gate": "node scripts/release-gate.mjs"
+    "release:gate": "node scripts/release-gate.mjs",
+    "verify:food": "node scripts/verify-food.mjs"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
