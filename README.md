@@ -419,3 +419,18 @@ CI builds an independent October 2026 sample period and checks the management re
 
 The Step 8 workspace is available at `/reports` to authorized users.
 
+
+
+## Release 1 hardening
+
+Release 1 now has an adversarial pre-launch gate. Run the normal verification chain plus the dedicated hardening checks before using Montikids with real operational data:
+
+```bash
+npm run verify:release
+npm run verify:backup-restore
+npm run release:gate -- --through=YYYY-MM-DD
+```
+
+The release gate must report zero difference for student receivables, family credits, supplier payables, cash, bank, payroll accounting, net position, and the trial balance. Closed school terms reject new academic and billing activity at the database layer while preserving settlement, reversal, and historical reporting.
+
+See `docs/RELEASE1_HARDENING.md` for the complete launch procedure and operator UAT checklist.
