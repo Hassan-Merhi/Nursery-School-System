@@ -46,7 +46,7 @@ insert into permission(key,description) values
   ('employees.manage','Create and maintain employees, job titles and salary agreements'),
   ('payroll.view','View payroll runs, payslips, reports and employee payroll ledgers'),
   ('payroll.manage','Create payroll runs and draft allowances, bonuses and deductions'),
-  ('payroll.approve','Submit and approve payroll runs'),
+  ('payroll.approve','Approve payroll runs or return them to draft'),
   ('payroll.lock','Lock approved payroll and post payroll expense, advance repayment and salary payable accounting'),
   ('payroll.pay','Pay locked payroll and reverse payroll payments'),
   ('salary_advances.manage','Issue and reverse salary advances and repayment schedules')
