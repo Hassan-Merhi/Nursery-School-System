@@ -256,6 +256,10 @@ try{
 
   const eur=(await client.query("select * from analytics_monthly_financials('2026-10-01','2026-10-31') where currency='EUR'")).rows[0];
   assert.equal(String(eur.income),"100.00","EUR must remain a separate analytics series");
+  const supplyTrend=(await client.query("select distinct period_amount::text,period_expense_total::text,share_percent::text from analytics_expense_trend('2026-10-01','2026-10-31') where account_id=$1",[supplies])).rows[0];
+  assert.equal(supplyTrend.period_amount,"275.00");
+  assert.equal(supplyTrend.period_expense_total,"395.00","USD expense share denominator must exclude other currencies");
+  assert.equal(supplyTrend.share_percent,"69.62");
 
   const term=(await client.query("select * from analytics_term_comparison($1) where term_sequence=1 and currency='USD'",[year])).rows[0];
   assert.equal(String(term.expected_fees),"1000.00");

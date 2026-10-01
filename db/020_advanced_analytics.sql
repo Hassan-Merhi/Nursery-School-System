@@ -197,7 +197,7 @@ as $$
   ), enriched as (
     select x.*,
       sum(x.monthly_amount) over(partition by x.account_id)::numeric(14,2) period_amount,
-      sum(x.monthly_amount) over()::numeric(14,2) period_expense_total
+      sum(x.monthly_amount) over(partition by x.currency)::numeric(14,2) period_expense_total
     from current_monthly x
   ), prior as (
     select a.id account_id,
