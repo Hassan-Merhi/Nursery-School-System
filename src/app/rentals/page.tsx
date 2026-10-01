@@ -97,9 +97,9 @@ export default async function RentalsPage({searchParams}:{searchParams:Promise<{
     (can("rentals.pay")||canSeeData)?query<Row>("select * from cash_bank_balance where is_active=true order by account_kind,display_name"):Promise.resolve({rows:[]} as any),
   ]);
 
-  const journals=journalsResult.rows,config=configResult.rows[0]??{},roles=rolesResult.rows,accounts=accountsResult.rows;
-  const landlords=landlordsResult.rows,agreements=agreementsResult.rows,schedules=schedulesResult.rows,payments=paymentsResult.rows;
-  const recognitions=recognitionsResult.rows,attachments=attachmentsResult.rows,history=historyResult.rows,cashBank=cashBankResult.rows;
+  const journals=journalsResult.rows as Row[],config=(configResult.rows[0]??{}) as Row,roles=rolesResult.rows as Row[],accounts=accountsResult.rows as Row[];
+  const landlords=landlordsResult.rows as Row[],agreements=agreementsResult.rows as Row[],schedules=schedulesResult.rows as Row[],payments=paymentsResult.rows as Row[];
+  const recognitions=recognitionsResult.rows as Row[],attachments=attachmentsResult.rows as Row[],history=historyResult.rows as Row[],cashBank=cashBankResult.rows as Row[];
   const activeAgreements=agreements.filter((x)=>x.status==="active");
   const totalPrepaid=agreements.reduce((sum,x)=>sum+Number(x.prepaid_rent_balance??0),0);
   const totalPayable=agreements.reduce((sum,x)=>sum+Number(x.rent_payable_balance??0),0);
