@@ -498,32 +498,35 @@ create table parent_refund (
 create index parent_refund_family_idx on parent_refund(family_id,refunded_on desc);
 
 create view family_credit_balance as
+with currencies as (
+  select family_id,currency from payment_balance where status='posted'
+  union
+  select family_id,currency from credit_note_balance where status='issued'
+  union
+  select family_id,currency from parent_refund where status='posted'
+), payments as (
+  select family_id,currency,sum(unallocated_amount) as unallocated_payments
+  from payment_balance where status='posted'
+  group by family_id,currency
+), credits as (
+  select family_id,currency,sum(unallocated_amount) as unallocated_credits
+  from credit_note_balance where status='issued'
+  group by family_id,currency
+), refunds as (
+  select family_id,currency,sum(amount) as refunded_amount
+  from parent_refund where status='posted'
+  group by family_id,currency
+)
 select
-  f.id as family_id,
+  x.family_id,x.currency,
   coalesce(p.unallocated_payments,0)::numeric(14,2) as unallocated_payments,
   coalesce(c.unallocated_credits,0)::numeric(14,2) as unallocated_credits,
   coalesce(r.refunded_amount,0)::numeric(14,2) as refunded_amount,
-  (
-    coalesce(p.unallocated_payments,0)
-    + coalesce(c.unallocated_credits,0)
-    - coalesce(r.refunded_amount,0)
-  )::numeric(14,2) as available_credit
-from family f
-left join (
-  select family_id,sum(unallocated_amount) as unallocated_payments
-  from payment_balance where status='posted'
-  group by family_id
-) p on p.family_id=f.id
-left join (
-  select family_id,sum(unallocated_amount) as unallocated_credits
-  from credit_note_balance where status='issued'
-  group by family_id
-) c on c.family_id=f.id
-left join (
-  select family_id,sum(amount) as refunded_amount
-  from parent_refund where status='posted'
-  group by family_id
-) r on r.family_id=f.id;
+  (coalesce(p.unallocated_payments,0)+coalesce(c.unallocated_credits,0)-coalesce(r.refunded_amount,0))::numeric(14,2) as available_credit
+from currencies x
+left join payments p on p.family_id=x.family_id and p.currency=x.currency
+left join credits c on c.family_id=x.family_id and c.currency=x.currency
+left join refunds r on r.family_id=x.family_id and r.currency=x.currency;
 
 create or replace function validate_parent_refund()
 returns trigger
@@ -550,7 +553,7 @@ begin
   if v_account_currency<>new.currency then raise exception 'Refund and cash/bank account currencies must match'; end if;
   if new.method='check' and coalesce(new.cheque_number,'')='' then raise exception 'Cheque number is required for cheque refunds'; end if;
 
-  select available_credit into v_available from family_credit_balance where family_id=new.family_id;
+  select available_credit into v_available from family_credit_balance where family_id=new.family_id and currency=new.currency;
   if new.status='posted' and new.amount>coalesce(v_available,0) then
     raise exception 'Refund exceeds available family credit';
   end if;
@@ -1147,23 +1150,28 @@ end;
 $$;
 
 create or replace function complete_bank_reconciliation(p_reconciliation_id uuid,p_user_id uuid default null)
-returns void language plpgsql as $$
+returns void language plpgsql as $
 declare
   v_difference numeric;
   v_status text;
 begin
-  select status,difference into v_status,v_difference
-  from bank_reconciliation_summary
+  select status into v_status
+  from bank_reconciliation
   where id=p_reconciliation_id
   for update;
+  if not found then raise exception 'Reconciliation not found'; end if;
   if v_status is distinct from 'draft' then raise exception 'Only draft reconciliations can be completed'; end if;
+
+  select difference into v_difference
+  from bank_reconciliation_summary
+  where id=p_reconciliation_id;
   if v_difference<>0 then raise exception 'Reconciliation difference must be zero before completion'; end if;
 
   update bank_reconciliation
   set status='completed',completed_at=now(),completed_by=p_user_id
   where id=p_reconciliation_id;
 end;
-$$;
+$;
 
 insert into permission(key,description) values
   ('expenses.view','View expenses and expense receipts'),
