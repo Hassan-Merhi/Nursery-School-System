@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "foundation-security", "step-*"]
+    branches: ["main", "foundation-security", "phase6-rentals", "step-*"]
   pull_request:
     branches: ["main"]
 
@@ -50,5 +50,7 @@ jobs:
       - run: npm run verify:billing
       - run: npm run verify:accounting
       - run: npm run verify:operations
+      - run: npm run verify:rentals
+      - run: npm run verify:payroll
       - run: npm run typecheck
       - run: npm run build
