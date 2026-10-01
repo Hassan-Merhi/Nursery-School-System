@@ -149,7 +149,7 @@ export async function createRentalAgreementAction(d:FormData){
   const x=agreementInput(d);
   await withTransaction(async c=>{
     if(!(await c.query("select 1 from landlord where id=$1 and status='active'",[x.landlord])).rowCount)bad("Select an active landlord.");
-    const number=await nextNo(c,"rental_agreement",a.userId);
+    const number=await nextNo(c,"rental",a.userId);
     const r=await c.query<{id:string}>(
       `insert into rental_agreement(
         agreement_number,landlord_id,property_name,property_address,start_on,end_on,

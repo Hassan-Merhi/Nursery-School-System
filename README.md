@@ -211,3 +211,74 @@ Expected result:
 - Accounting equation difference: 0.00
 
 The Step 4 workspace is available at `/accounting` to authorized users.
+
+## Step 6 — Rentals
+
+Implemented:
+
+- Landlord profiles with contact, tax, address, notes, and active/inactive status
+- Rental agreements with start/end dates, recurring amount, currency, frequency, due day, refundable deposit, reference, and notes
+- Deterministic rent schedules generated when a draft agreement is activated
+- Immutable activated financial terms so historical rental accounting cannot be rewritten
+- Rent and deposit payments from configured cash/bank accounts
+- Automatic allocation of rent payments to the oldest outstanding schedule periods
+- Correct separation of prepaid rent, recognized rent expense, and rent payable
+- Refundable rent deposits held as assets rather than rent expense
+- Month-end rent recognition for one period or all ended periods through a selected date
+- Payment reversals, including safe reclassification when already-consumed prepaid rent is reversed
+- Rent-recognition reversals with accounting safeguards
+- Rental attachments using the protected document-storage layer
+- Append-only rent history for agreements, activation, payments, recognition, reversals, deposits, and attachments
+- Fine-grained rental and rental-document permissions
+- A dedicated Rentals accounting journal and explicit account-role mappings
+- CI verification for Milestone 6 and the rental accounting edge cases
+
+### Rental accounting flow
+
+Rental accounting uses four explicit user-configured account roles:
+
+- Rent Expense — expense
+- Prepaid Rent — asset
+- Rent Payable — liability
+- Rent Deposit — asset
+
+For prepaid rent, a payment does **not** create the full rent expense immediately.
+
+A 12,000 payment covering six monthly periods posts initially as:
+
+- Debit Prepaid Rent 12,000
+- Credit Cash/Bank 12,000
+
+Each month-end recognition posts:
+
+- Debit Rent Expense 2,000
+- Credit Prepaid Rent 2,000
+
+If a period is recognized before it is paid:
+
+- Debit Rent Expense
+- Credit Rent Payable
+
+The later payment then posts:
+
+- Debit Rent Payable
+- Credit Cash/Bank
+
+Refundable deposits post to Rent Deposit instead of Rent Expense.
+
+### Milestone 6 verification
+
+CI creates a six-month rental agreement at 2,000 per month, prepays 12,000, and simulates all six month-end periods. It verifies:
+
+- Initial prepaid rent: 12,000.00
+- Initial rent expense: 0.00
+- Monthly recognition: 2,000.00
+- Final prepaid rent after six periods: 0.00
+- Final recognized rent expense: 12,000.00
+- Rent payable for the fully prepaid agreement: 0.00
+- Trial balance remains balanced
+
+The verification also covers unpaid rent becoming Rent Payable, later payment clearing that payable, refundable deposits, payment reversals, recognition reversals, protected attachments, immutable activated terms, and append-only rental history.
+
+The Step 6 workspace is available at `/rentals` to authorized users.
+\n

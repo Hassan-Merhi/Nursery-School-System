@@ -2,7 +2,6 @@
 
 insert into document_sequence(document_type,prefix) values
   ('landlord','LND'),
-  ('rental_agreement','RNT'),
   ('rent_payment','RPAY')
 on conflict (document_type) do nothing;
 
