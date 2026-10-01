@@ -43,9 +43,10 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
     can("payroll.view") ? query<Row>("select l.*,e.employee_number,e.first_name,e.last_name from employee_payroll_ledger l join employee e on e.id=l.employee_id order by l.event_date desc,l.ledger_key desc limit 250") : Promise.resolve({rows:[]} as any),
   ]);
 
-  const journals=journalsR.rows, config=configR.rows[0]??{}, roles=rolesR.rows, accounts=accountsR.rows, jobs=jobsR.rows;
-  const employees=employeesR.rows, salaryHistory=salaryR.rows, advances=advancesR.rows, schedules=schedulesR.rows;
-  const runs=runsR.rows, items=itemsR.rows, payments=paymentsR.rows, cash=cashR.rows, ledger=ledgerR.rows;
+  const journals:Row[]=journalsR.rows, roles:Row[]=rolesR.rows, accounts:Row[]=accountsR.rows, jobs:Row[]=jobsR.rows;
+  const config:Row=configR.rows[0]??{};
+  const employees:Row[]=employeesR.rows, salaryHistory:Row[]=salaryR.rows, advances:Row[]=advancesR.rows, schedules:Row[]=schedulesR.rows;
+  const runs:Row[]=runsR.rows, items:Row[]=itemsR.rows, payments:Row[]=paymentsR.rows, cash:Row[]=cashR.rows, ledger:Row[]=ledgerR.rows;
   const activeEmployees=employees.filter((e)=>e.status==="active");
   const outstandingAdvances=advances.reduce((sum,x)=>sum+Number(x.outstanding_amount??0),0);
   const lockedPayable=runs.filter((r)=>r.status==="locked").reduce((sum,x)=>sum+Number(x.net_pay??0),0);
