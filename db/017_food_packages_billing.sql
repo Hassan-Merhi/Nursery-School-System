@@ -1273,25 +1273,25 @@ as $$
     select pa.invoice_id,sum(pa.amount)::numeric(12,2) amount
     from payment_allocation pa join payment p on p.id=pa.payment_id
     where pa.allocated_on<=p_through and p.received_on<=p_through
-      and (p.status='posted' or p.reversed_at::date>p_through)
+      and (p.status='posted' or report_effective_reversal_date('billing_payment',p.id,p.reversed_at)>p_through)
     group by pa.invoice_id
   ), tuition_credit as (
     select ca.invoice_id,sum(ca.amount)::numeric(12,2) amount
     from credit_note_allocation ca join credit_note c on c.id=ca.credit_note_id
     where ca.allocated_on<=p_through and c.issued_on<=p_through
-      and (c.status='issued' or c.reversed_at::date>p_through)
+      and (c.status='issued' or report_effective_reversal_date('billing_credit_note',c.id,c.reversed_at)>p_through)
     group by ca.invoice_id
   ), food_paid as (
     select a.food_bill_id,sum(a.amount)::numeric(12,2) amount
     from food_payment_allocation a join payment p on p.id=a.payment_id
     where a.allocated_on<=p_through and p.received_on<=p_through
-      and (p.status='posted' or p.reversed_at::date>p_through)
+      and (p.status='posted' or report_effective_reversal_date('billing_payment',p.id,p.reversed_at)>p_through)
     group by a.food_bill_id
   ), food_credit as (
     select a.food_bill_id,sum(a.amount)::numeric(12,2) amount
     from food_credit_allocation a join credit_note c on c.id=a.credit_note_id
     where a.allocated_on<=p_through and c.issued_on<=p_through
-      and (c.status='issued' or c.reversed_at::date>p_through)
+      and (c.status='issued' or report_effective_reversal_date('billing_credit_note',c.id,c.reversed_at)>p_through)
     group by a.food_bill_id
   )
   select i.id,i.invoice_number,i.family_id,f.family_number,f.display_name,
@@ -1317,7 +1317,7 @@ as $$
   left join food_paid p on p.food_bill_id=b.id
   left join food_credit c on c.food_bill_id=b.id
   where b.issued_on is not null and b.issued_on<=p_through
-    and (b.status<>'void' or b.voided_at::date>p_through);
+    and (b.status<>'void' or report_effective_reversal_date('food_bill',b.id,b.voided_at)>p_through);
 $$;
 
 create or replace function report_family_credits(p_through date)
@@ -1337,7 +1337,7 @@ as $$
           where fa.payment_id=p.id and fa.allocated_on<=p_through),0)
       ) as allocated
     from payment p
-    where p.received_on<=p_through and (p.status='posted' or p.reversed_at::date>p_through)
+    where p.received_on<=p_through and (p.status='posted' or report_effective_reversal_date('billing_payment',p.id,p.reversed_at)>p_through)
   ), credit_totals as (
     select c.id,c.family_id,c.currency,c.amount,
       (
@@ -1347,11 +1347,11 @@ as $$
           where fa.credit_note_id=c.id and fa.allocated_on<=p_through),0)
       ) as allocated
     from credit_note c
-    where c.issued_on<=p_through and (c.status='issued' or c.reversed_at::date>p_through)
+    where c.issued_on<=p_through and (c.status='issued' or report_effective_reversal_date('billing_credit_note',c.id,c.reversed_at)>p_through)
   ), refunds as (
     select r.family_id,r.currency,sum(r.amount)::numeric(14,2) as amount
     from parent_refund r
-    where r.refunded_on<=p_through and (r.status='posted' or r.reversed_at::date>p_through)
+    where r.refunded_on<=p_through and (r.status='posted' or report_effective_reversal_date('parent_refund',r.id,r.reversed_at)>p_through)
     group by r.family_id,r.currency
   ), currencies as (
     select family_id,currency from payment_totals
