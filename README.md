@@ -75,3 +75,42 @@ Implemented:
 - CI verification of the Milestone 2 family → parent → two siblings → Term 1 flow
 
 The Step 2 workspace is available at `/students` to authorized users.
+
+
+## Step 3 — Fees, Discounts & Billing
+
+Implemented:
+
+- Standard nursery fee schedules by school year term
+- One active fee schedule per term, while retaining prior schedule history
+- Built-in sibling discount at 10%
+- Built-in teacher-child discount at 50%
+- Percentage, fixed-amount, and custom discounts
+- Explicit discount request, approval, rejection, revocation, and append-only history
+- Configurable combined-discount behavior with a hard total-discount cap
+- Term invoice generation from enrolled students and the active term fee schedule
+- Immutable invoice discount snapshots so later rule changes never rewrite historical invoices
+- Additional charges before invoice issue
+- Invoice states: draft, issued, partially paid, paid, and void
+- Partial payments and invoice allocations
+- Prepayments and overpayments retained as unapplied family funds
+- Credit notes, credit allocation, and reversals
+- Family and student ledgers
+- Fine-grained billing, discount, approval, and payment permissions
+- CI verification for Milestone 3
+
+### Combined-discount rule
+
+The rule is explicit in `billing_configuration.discount_combination_mode`:
+
+- `best_single` (default): only the largest monetary discount applies. Teacher-child 50% + sibling 10% = 50% total.
+- `additive`: percentage discounts are each calculated from the original nursery fee and added. 50% + 10% = 60% total.
+- `sequential`: discounts apply by priority to the remaining balance. 50% then 10% = 55% effective total.
+
+The total discount is also capped by `max_discount_percent` (default 100%). Discounts apply to the standard nursery-fee line only; additional charges are not discounted automatically.
+
+### Billing integrity rules
+
+Issued invoice lines and their discount snapshots are immutable. Corrections after issue use credit notes rather than editing history. Payment and credit allocations are immutable; an incorrect posted payment or credit note is reversed and re-entered. Unallocated payment value remains visible as a prepayment, overpayment, or unapplied family payment.
+
+The Step 3 workspace is available at `/billing` to authorized users.
