@@ -51,6 +51,7 @@ export async function updateNotificationRuleAction(d:FormData){
     );
     await writeAudit(c,{actorUserId:a.userId,action:"notification_rule_updated",entityType:"notification_rule",entityId:rule,before,after:{enabled,leadDays:lead,severity}});
   });
+  await query("select * from refresh_system_notifications(current_date,$1)",[a.userId]);
   good("Notification rule updated.");
 }
 
