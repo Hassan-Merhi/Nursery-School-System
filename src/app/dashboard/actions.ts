@@ -155,6 +155,18 @@ export async function createUserAction(formData: FormData) {
     );
     if (validRoles.rowCount !== roleIds.length) fail("One or more roles are invalid.");
 
+    const excessivePermissions = await client.query(
+      `select distinct rp.permission_key
+       from role_permission rp
+       where rp.role_id = any($1::uuid[])
+         and not (rp.permission_key = any($2::text[]))
+       limit 1`,
+      [roleIds, auth.permissions],
+    );
+    if (excessivePermissions.rowCount) {
+      fail("You cannot assign a role that grants permissions you do not have.");
+    }
+
     const inserted = await client.query<{ id: string }>(
       `insert into app_user(email, full_name, password_hash, created_by, updated_by)
        values ($1,$2,$3,$4,$4) returning id`,
@@ -210,6 +222,18 @@ export async function updateUserAccessAction(formData: FormData) {
       [roleIds],
     );
     if (validRoles.rowCount !== roleIds.length) fail("One or more roles are invalid.");
+
+    const excessivePermissions = await client.query(
+      `select distinct rp.permission_key
+       from role_permission rp
+       where rp.role_id = any($1::uuid[])
+         and not (rp.permission_key = any($2::text[]))
+       limit 1`,
+      [roleIds, auth.permissions],
+    );
+    if (excessivePermissions.rowCount) {
+      fail("You cannot assign a role that grants permissions you do not have.");
+    }
 
     const administratorRole = await client.query<{ id: string }>(
       "select id from role where lower(name)='administrator' limit 1",
@@ -281,6 +305,10 @@ export async function createRoleAction(formData: FormData) {
       [permissionKeys],
     );
     if (valid.rowCount !== permissionKeys.length) fail("Invalid permission selection.");
+    const excessive = permissionKeys.filter((key) => !auth.permissions.includes(key));
+    if (excessive.length) {
+      fail("You cannot grant permissions that you do not have.");
+    }
 
     const inserted = await client.query<{ id: string }>(
       "insert into role(name, description, created_by) values ($1,$2,$3) returning id",
@@ -326,6 +354,10 @@ export async function updateRolePermissionsAction(formData: FormData) {
       [permissionKeys],
     );
     if (valid.rowCount !== permissionKeys.length) fail("Invalid permission selection.");
+    const excessive = permissionKeys.filter((key) => !auth.permissions.includes(key));
+    if (excessive.length) {
+      fail("You cannot grant permissions that you do not have.");
+    }
 
     const before = await client.query(
       "select permission_key from role_permission where role_id=$1 order by permission_key",
