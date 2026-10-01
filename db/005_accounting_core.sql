@@ -491,7 +491,7 @@ create or replace function accounting_system_journal()
 returns uuid
 language plpgsql
 stable
-as $
+as $$
 declare
   v_journal_id uuid;
 begin
@@ -505,7 +505,7 @@ begin
   end if;
   return v_journal_id;
 end;
-$;
+$$;
 
 alter table payment_allocation
   add column allocated_on date not null default current_date;
