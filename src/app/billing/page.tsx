@@ -813,7 +813,7 @@ export default async function BillingPage({
               <tbody>
                 {payments.map((payment) => (
                   <tr key={payment.id}>
-                    <td>{payment.receipt_number}</td>
+                    <td><Link href={`/receipts/${payment.id}`}>{payment.receipt_number}</Link></td>
                     <td>{payment.family_number} · {payment.family_name}{payment.student_name ? ` · ${payment.student_name}` : ""}</td>
                     <td>{payment.payment_account_name ?? "Default mapped asset"}</td>
                     <td>{payment.method === "check" ? "Cheque" : payment.method.replaceAll("_", " ")}</td>
