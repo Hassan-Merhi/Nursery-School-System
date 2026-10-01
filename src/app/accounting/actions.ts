@@ -335,6 +335,40 @@ export async function createJournalAction(formData: FormData) {
   success("Journal created.");
 }
 
+export async function updateBillingJournalAction(formData: FormData) {
+  const auth = await requirePermission("accounting.mapping");
+  const journalId = requireUuid(value(formData, "journal_id"), "billing journal");
+
+  await withTransaction(async (client) => {
+    const journal = await client.query(
+      "select id,code,name,status from journal where id=$1",
+      [journalId],
+    );
+    if (!journal.rowCount) fail("Journal not found.");
+    if (journal.rows[0].status !== "active") fail("Billing journal must be active.");
+
+    const before = await client.query(
+      "select billing_journal_id from accounting_configuration where id=1 for update",
+    );
+    await client.query(
+      `update accounting_configuration
+       set billing_journal_id=$1,updated_at=now(),updated_by=$2
+       where id=1`,
+      [journalId, auth.userId],
+    );
+    await writeAudit(client, {
+      actorUserId: auth.userId,
+      action: "billing_journal_updated",
+      entityType: "accounting_configuration",
+      entityId: "1",
+      before: before.rows[0],
+      after: { billingJournalId: journalId },
+    });
+  });
+
+  success("Billing journal updated.");
+}
+
 export async function updateAccountingMappingAction(formData: FormData) {
   const auth = await requirePermission("accounting.mapping");
   const roleKey = value(formData, "role_key");
