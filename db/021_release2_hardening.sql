@@ -106,6 +106,17 @@ begin
 end;
 $$;
 
+-- Bind Step 11's real low-stock ledger to the Step 12 notification contract.
+create or replace view inventory_low_stock_notification_source as
+select
+  b.ingredient_id as source_id,
+  b.name as item_name,
+  b.quantity_on_hand as current_quantity,
+  b.reorder_level,
+  b.unit_name
+from ingredient_inventory_balance b
+where b.status='active' and b.reorder_level>0;
+
 create or replace function release2_reconciliation_gate(p_through date)
 returns table (
   check_name text,
