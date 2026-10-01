@@ -66,8 +66,9 @@ The built-in Administrator role receives this permission automatically.
 
 Sensitive source data still respects existing permissions. In particular:
 
-- Users without `payroll.view` must not receive employee-level payroll information.
-- Step 13 may show high-level payroll totals to a user only if the existing permission model already permits that level of management visibility; otherwise the payroll block is omitted.
+- `analytics.view` permits only aggregate payroll analytics such as monthly payroll expense, net pay, and employee count.
+- Step 13 never returns employee names, employee numbers, salary agreements, payslips, or employee-level payroll rows.
+- Detailed payroll data remains governed by the existing `payroll.view` permission in the payroll and reporting workspaces.
 - Analytics is read-only and introduces no edit permission.
 
 Server-side authorization is mandatory. Hiding a card in React is not sufficient protection.
