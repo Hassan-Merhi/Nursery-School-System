@@ -47,5 +47,6 @@ jobs:
           npm run db:seed-admin -- --email=ci-admin@example.invalid --name="CI Administrator" --password="$PASSWORD"
       - run: node scripts/verify-foundation.mjs
       - run: npm run verify:students
+      - run: npm run verify:billing
       - run: npm run typecheck
       - run: npm run build
