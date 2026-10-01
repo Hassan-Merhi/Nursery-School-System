@@ -163,6 +163,7 @@ declare
   v_supplier uuid;
   v_currency text;
   v_status text;
+  v_ordered_on date;
 begin
   if tg_op='UPDATE' and old.status<>'draft' and (
     new.supplier_id is distinct from old.supplier_id
@@ -175,7 +176,7 @@ begin
   end if;
 
   if new.purchase_order_id is not null and (tg_op='INSERT' or old.status='draft') then
-    select supplier_id,currency,status into v_supplier,v_currency,v_status
+    select supplier_id,currency,status,ordered_on into v_supplier,v_currency,v_status,v_ordered_on
     from food_purchase_order where id=new.purchase_order_id;
     if v_supplier is null then raise exception 'Purchase order not found'; end if;
     if v_status not in ('ordered','partially_received') then
@@ -183,6 +184,7 @@ begin
     end if;
     if new.supplier_id<>v_supplier then raise exception 'Receipt supplier must match the purchase order'; end if;
     if new.currency<>v_currency then raise exception 'Receipt currency must match the purchase order'; end if;
+    if new.received_on<v_ordered_on then raise exception 'Receipt date cannot be before the purchase order date'; end if;
   end if;
   return new;
 end;
