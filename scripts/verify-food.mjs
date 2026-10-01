@@ -105,6 +105,11 @@ try{
   const foodPaymentAllocation=(await client.query("insert into food_payment_allocation(payment_id,food_bill_id,amount,allocated_on) values ($1,$2,60,'2026-10-02') returning id",[payment,bill])).rows[0].id;
   await client.query("select accounting_post_food_payment_allocation($1,null)",[foodPaymentAllocation]);
 
+  await expectFailure("Food allocations cannot be dated before their payment or bill",async()=>{
+    const early=(await client.query("insert into payment(receipt_number,family_id,student_id,payment_kind,amount,currency,received_on,method,payment_account_id) values ($1,$2,$3,'payment',1,'USD','2026-10-02','cash',$4) returning id",["CI-EARLY-"+randomUUID(),family,student,cash])).rows[0].id;
+    await client.query("insert into food_payment_allocation(payment_id,food_bill_id,amount,allocated_on) values ($1,$2,1,'2026-09-30')",[early,bill]);
+  });
+
   assert.equal((await client.query("select balance_amount::text,status from food_bill_balance where id=$1",[bill])).rows[0].balance_amount,"40.00","Partial food payment must reduce the bill balance");
   assert.equal((await client.query("select unallocated_amount::text from payment_balance where id=$1",[payment])).rows[0].unallocated_amount,"0.00","Food allocation must consume the shared payment balance");
 
@@ -119,6 +124,11 @@ try{
   await client.query("select accounting_post_credit_note($1,null)",[credit]);
   const foodCreditAllocation=(await client.query("insert into food_credit_allocation(credit_note_id,food_bill_id,amount,allocated_on) values ($1,$2,40,'2026-10-03') returning id",[credit,bill])).rows[0].id;
   await client.query("select accounting_post_food_credit_allocation($1,null)",[foodCreditAllocation]);
+
+  await expectFailure("Food credit allocations cannot be dated before their credit or bill",async()=>{
+    const earlyCredit=(await client.query("insert into credit_note(credit_note_number,family_id,student_id,amount,currency,reason,issued_on,status) values ($1,$2,$3,1,'USD','CI early-date check','2026-10-03','issued') returning id",["CI-EARLY-CR-"+randomUUID(),family,student])).rows[0].id;
+    await client.query("insert into food_credit_allocation(credit_note_id,food_bill_id,amount,allocated_on) values ($1,$2,1,'2026-09-30')",[earlyCredit,bill]);
+  });
 
   const settled=(await client.query("select balance_amount::text,paid_amount::text,credit_amount::text,status from food_bill_balance where id=$1",[bill])).rows[0];
   assert.equal(settled.balance_amount,"0.00");
@@ -145,6 +155,28 @@ try{
 
   const trial=await client.query("select sum(debit_balance)::text as debit,sum(credit_balance)::text as credit from report_trial_balance('2026-10-31') where currency='USD'");
   assert.equal(trial.rows[0].debit,trial.rows[0].credit,"Trial balance must remain balanced");
+
+  await client.query("select accounting_reverse_payment($1,'2026-10-04',null,'CI food payment reversal')",[payment]);
+  await client.query("update payment set status='reversed',reversed_at='2026-10-04T12:00:00Z',reversal_reason='CI food payment reversal' where id=$1",[payment]);
+  await client.query("select accounting_reverse_credit_note($1,'2026-10-04',null,'CI food credit reversal')",[credit]);
+  await client.query("update credit_note set status='reversed',reversed_at='2026-10-04T12:01:00Z',reversal_reason='CI food credit reversal' where id=$1",[credit]);
+
+  const reopened=(await client.query("select balance_amount::text,status from food_bill_balance where id=$1",[bill])).rows[0];
+  assert.equal(reopened.balance_amount,"100.00","Reversing allocated funds must reopen the food receivable");
+  assert.equal(reopened.status,"issued");
+  await client.query("select void_food_bill($1,'2026-10-05',null,'CI food bill reversal after source reversals')",[bill]);
+  assert.equal((await client.query("select status from food_bill where id=$1",[bill])).rows[0].status,"void","A food bill must be voidable after all allocated sources are reversed");
+  assert.equal((await client.query("select count(*)::int as count from food_income_report where id=$1",[bill])).rows[0].count,0,"Voided food bills must not appear as current food income");
+  assert.equal((await client.query("select count(*)::int as count from family_ledger where entry_type='food_bill_void' and source_id=$1",[bill])).rows[0].count,1,"Family ledger must retain the food-bill reversal");
+  assert.equal((await client.query("select count(*)::int as count from student_ledger where entry_type='food_bill_void' and source_id=$1",[bill])).rows[0].count,1,"Student ledger must retain the food-bill reversal");
+
+  const postVoidGate=await client.query("select check_name,difference::text,passed from release_reconciliation_gate('2026-10-31') where check_name in ('Student balances = Accounts Receivable','Family credits = Customer Deposits')");
+  for(const row of postVoidGate.rows){
+    assert.equal(row.difference,"0.00",row.check_name+" must reconcile after reversals and void");
+    assert.equal(row.passed,true,row.check_name+" must pass after reversals and void");
+  }
+  const postVoidTrial=await client.query("select sum(debit_balance)::text as debit,sum(credit_balance)::text as credit from report_trial_balance('2026-10-31') where currency='USD'");
+  assert.equal(postVoidTrial.rows[0].debit,postVoidTrial.rows[0].credit,"Trial balance must remain balanced after reversals and void");
 
   await client.query("update food_package set status='archived' where id=$1",[packages.monthly]);
   await client.query("update student_food_selection set status='ended',ended_at=now() where id=$1",[selection.id]);

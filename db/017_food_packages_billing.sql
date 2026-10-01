@@ -543,6 +543,9 @@ begin
   if v_payment.student_id is not null and v_payment.student_id<>v_bill.student_id then
     raise exception 'Student-specific payment cannot be allocated to another student';
   end if;
+  if new.allocated_on<v_payment.received_on or new.allocated_on<v_bill.issued_on then
+    raise exception 'Food payment allocation date cannot precede the payment or food bill issue date';
+  end if;
 
   select
     coalesce((select sum(amount) from payment_allocation where payment_id=new.payment_id),0)
@@ -586,6 +589,9 @@ begin
   if v_credit.currency<>v_bill.currency then raise exception 'Credit and food bill currencies must match'; end if;
   if v_credit.student_id is not null and v_credit.student_id<>v_bill.student_id then
     raise exception 'Student-specific credit cannot be allocated to another student';
+  end if;
+  if new.allocated_on<v_credit.issued_on or new.allocated_on<v_bill.issued_on then
+    raise exception 'Food credit allocation date cannot precede the credit or food bill issue date';
   end if;
 
   select
@@ -996,9 +1002,17 @@ begin
   if v_bill.status not in ('issued','partially_paid','paid') then
     raise exception 'Only issued food bills can be voided';
   end if;
-  if exists (select 1 from food_payment_allocation where food_bill_id=p_food_bill_id)
-     or exists (select 1 from food_credit_allocation where food_bill_id=p_food_bill_id) then
-    raise exception 'Reverse allocated payments or credits before voiding the food bill';
+  if exists (
+       select 1 from food_payment_allocation a
+       join payment p on p.id=a.payment_id
+       where a.food_bill_id=p_food_bill_id and p.status='posted'
+     )
+     or exists (
+       select 1 from food_credit_allocation a
+       join credit_note c on c.id=a.credit_note_id
+       where a.food_bill_id=p_food_bill_id and c.status='issued'
+     ) then
+    raise exception 'Reverse active allocated payments or credits before voiding the food bill';
   end if;
 
   select id into v_entry
@@ -1373,7 +1387,7 @@ join food_bill_balance bb on bb.id=b.id
 join family f on f.id=b.family_id
 join student s on s.id=b.student_id
 join food_package p on p.id=b.food_package_id
-where b.issued_on is not null;
+where b.issued_on is not null and b.status<>'void';
 
 insert into permission(key,description) values
   ('food.view','View food items, packages, selections, bills, receipts and food income'),
