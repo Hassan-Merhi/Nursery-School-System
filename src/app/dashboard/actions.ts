@@ -211,6 +211,31 @@ export async function updateUserAccessAction(formData: FormData) {
     );
     if (validRoles.rowCount !== roleIds.length) fail("One or more roles are invalid.");
 
+    const administratorRole = await client.query<{ id: string }>(
+      "select id from role where lower(name)='administrator' limit 1",
+    );
+    const administratorRoleId = administratorRole.rows[0]?.id;
+    const previousRoleIds = (before.rows[0].role_ids ?? []) as string[];
+    const removingAdministrator =
+      Boolean(administratorRoleId) &&
+      previousRoleIds.includes(administratorRoleId) &&
+      (status !== "active" || !roleIds.includes(administratorRoleId));
+
+    if (removingAdministrator) {
+      const anotherAdministrator = await client.query(
+        `select 1
+         from app_user u
+         join user_role ur on ur.user_id=u.id
+         join role r on r.id=ur.role_id
+         where u.id<>$1 and u.status='active' and lower(r.name)='administrator'
+         limit 1`,
+        [userId],
+      );
+      if (!anotherAdministrator.rowCount) {
+        fail("At least one active Administrator account must remain.");
+      }
+    }
+
     await client.query(
       "update app_user set status=$2, updated_at=now(), updated_by=$3 where id=$1",
       [userId, status, auth.userId],
