@@ -23,6 +23,7 @@
     "verify:backup-restore": "sh scripts/verify-backup-restore.sh",
     "release:gate": "node scripts/release-gate.mjs",
     "verify:food": "node scripts/verify-food.mjs",
+    "verify:inventory": "node scripts/verify-inventory.mjs",
     "verify:notifications": "node scripts/verify-notifications.mjs",
     "notifications:run": "node scripts/run-notifications.mjs"
   },

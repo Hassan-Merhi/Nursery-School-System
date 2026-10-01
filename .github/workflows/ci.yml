@@ -54,6 +54,7 @@ jobs:
       - run: npm run verify:payroll
       - run: npm run verify:reports
       - run: npm run verify:food
+      - run: npm run verify:inventory
       - run: npm run verify:notifications
       - run: npm run typecheck
       - run: npm run build

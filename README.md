@@ -488,3 +488,20 @@ Notifications are derived from the existing operational records rather than stor
 Step 11 inventory remains the owner of stock quantities. Step 12 consumes the optional `inventory_low_stock_notification_source` view when it exists, so low-stock alerts activate without coupling the notification engine to an unfinished or duplicate inventory model.
 
 See [docs/STEP12_NOTIFICATIONS.md](docs/STEP12_NOTIFICATIONS.md) for deployment, scheduling, lifecycle, and inventory-integration details.
+
+
+## Step 11 — Food Inventory & Purchasing
+
+Implemented on the Step 11 branch:
+
+- Ingredients and inventory units
+- Purchase orders and partial receiving
+- Supplier-linked stock receipts and payables
+- Moving-average stock valuation
+- Kitchen usage, waste, spoilage, and stock corrections
+- Low-stock alerts
+- Inventory Asset / Food Program Expense accounting
+- Monthly food purchase, stock, food income, and rough-cost summary
+- Reversal controls that keep stock and accounting synchronized
+
+See [docs/STEP11_FOOD_INVENTORY.md](docs/STEP11_FOOD_INVENTORY.md) for the accounting model, safeguards, setup, and verification coverage.
