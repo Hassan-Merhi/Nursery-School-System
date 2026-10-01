@@ -78,7 +78,7 @@ try {
 
   await client.query(
     `insert into audit_log(actor_user_id, action, entity_type, entity_id, after_data)
-     values ($1,'bootstrap_admin','user',$1,jsonb_build_object('email',$2))`,
+     values ($1::uuid,'bootstrap_admin','user',$1::text,jsonb_build_object('email',$2::text))`,
     [userId, email],
   );
 
