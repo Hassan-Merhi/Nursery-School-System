@@ -45,10 +45,6 @@ export default async function NotificationsPage({
   const canManage=auth.permissions.includes("notifications.manage");
   const canRun=auth.permissions.includes("notifications.run");
 
-  if(canRun){
-    await query("select * from refresh_system_notifications(current_date,$1)",[auth.userId]);
-  }
-
   const rules=(await query<Rule>(
     "select rule_key,label,category,enabled,lead_days,severity,description from notification_rule order by category,label",
   )).rows;
