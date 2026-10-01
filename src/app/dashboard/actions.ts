@@ -130,6 +130,52 @@ export async function createSchoolYearAction(formData: FormData) {
   success(`School year ${name} created with all three terms.`);
 }
 
+export async function updateSchoolTermStatusAction(formData: FormData) {
+  const auth = await requirePermission("school_years.manage");
+  const termId = value(formData, "term_id");
+  const status = value(formData, "status");
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(termId)) {
+    fail("Invalid school term.");
+  }
+  if (!["open", "closed"].includes(status)) fail("Invalid term status.");
+
+  let termName = "Term";
+  await withTransaction(async (client) => {
+    const before = await client.query<{
+      id: string;
+      name: string;
+      status: string;
+      year_status: string;
+    }>(
+      `select t.id,t.name,t.status,y.status as year_status
+       from school_term t
+       join school_year y on y.id=t.school_year_id
+       where t.id=$1
+       for update of t`,
+      [termId],
+    );
+    const row = before.rows[0];
+    if (!row) fail("School term not found.");
+    if (status === "open" && row.year_status === "closed") {
+      fail("Reopen the school year before reopening one of its terms.");
+    }
+
+    termName = row.name;
+    await client.query("update school_term set status=$2 where id=$1", [termId, status]);
+    await writeAudit(client, {
+      actorUserId: auth.userId,
+      action: status === "closed" ? "school_term_closed" : "school_term_reopened",
+      entityType: "school_term",
+      entityId: termId,
+      before: row,
+      after: { ...row, status },
+    });
+  });
+
+  success(`${termName} ${status === "closed" ? "closed" : "reopened"}.`);
+}
+
 export async function createUserAction(formData: FormData) {
   const auth = await requirePermission("users.manage");
   const email = value(formData, "email").toLowerCase();

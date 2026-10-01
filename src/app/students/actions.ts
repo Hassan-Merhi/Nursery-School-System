@@ -321,8 +321,9 @@ export async function createEnrollmentAction(formData: FormData) {
       year_starts_on: string;
       year_ends_on: string;
       class_status: string;
+      year_status: string;
     }>(
-      `select c.name,c.capacity,c.status as class_status,
+      `select c.name,c.capacity,c.status as class_status,y.status as year_status,
          y.starts_on::text as year_starts_on,y.ends_on::text as year_ends_on
        from school_class c
        join school_year y on y.id=c.school_year_id
@@ -333,6 +334,7 @@ export async function createEnrollmentAction(formData: FormData) {
     const classRow = classResult.rows[0];
     if (!classRow) fail("Class does not belong to the selected school year.");
     if (classRow.class_status === "archived") fail("Archived classes cannot accept enrollments.");
+    if (classRow.year_status === "closed") fail("This school year is closed to new enrollments.");
     if (startsOn < classRow.year_starts_on || startsOn > classRow.year_ends_on) {
       fail("Enrollment start date must fall within the selected school year.");
     }
@@ -359,14 +361,18 @@ export async function createEnrollmentAction(formData: FormData) {
       sequence: number;
       starts_on: string;
       ends_on: string;
+      status: string;
     }>(
-      `select id,name,sequence,starts_on::text,ends_on::text
+      `select id,name,sequence,starts_on::text,ends_on::text,status
        from school_term
        where school_year_id=$1 and id=any($2::uuid[])
        order by sequence`,
       [schoolYearId, termIds],
     );
     if (terms.rowCount !== termIds.length) fail("One or more selected terms are invalid for this school year.");
+    if (terms.rows.some((term) => term.status === "closed")) {
+      fail("One or more selected terms are closed to new enrollments.");
+    }
     if (terms.rows.some((term) => startsOn > term.ends_on)) {
       fail("Enrollment start date is after one of the selected terms has ended.");
     }

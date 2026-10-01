@@ -79,7 +79,7 @@ type YearRow = {
   status: string;
   starts_on: string;
   ends_on: string;
-  terms: { id: string; sequence: number; name: string; starts_on: string; ends_on: string }[];
+  terms: { id: string; sequence: number; name: string; starts_on: string; ends_on: string; status: string }[];
 };
 
 type ClassRow = {
@@ -225,7 +225,7 @@ export default async function StudentsPage({
     ? (await query<YearRow>(
         `select y.id,y.name,y.status,y.starts_on::text,y.ends_on::text,
            coalesce(json_agg(json_build_object(
-             'id',t.id,'sequence',t.sequence,'name',t.name,
+             'id',t.id,'sequence',t.sequence,'name',t.name,'status',t.status,
              'starts_on',t.starts_on::text,'ends_on',t.ends_on::text
            ) order by t.sequence) filter (where t.id is not null),'[]'::json) as terms
          from school_year y
@@ -471,7 +471,7 @@ export default async function StudentsPage({
               <label>School year<select name="school_year_id" required defaultValue=""><option value="" disabled>Select year</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name}</option>)}</select></label>
               <label>Class<select name="class_id" required defaultValue=""><option value="" disabled>Select class</option>{classes.filter((item) => item.status !== "archived").map((item) => <option key={item.id} value={item.id}>{item.school_year_name} · {item.name}</option>)}</select></label>
               <label>Actual start date<input name="starts_on" type="date" required /></label>
-              <fieldset className="span-2"><legend>Term enrollment</legend><div className="permission-grid">{years.flatMap((year) => year.terms.map((term) => <label className="check permission-item" key={term.id}><input type="checkbox" name="term_id" value={term.id} /><span><strong>{year.name} · Term {term.sequence}</strong><small>{term.name} · {term.starts_on} to {term.ends_on}</small></span></label>))}</div></fieldset>
+              <fieldset className="span-2"><legend>Term enrollment</legend><div className="permission-grid">{years.flatMap((year) => year.terms.map((term) => <label className="check permission-item" key={term.id}><input type="checkbox" name="term_id" value={term.id} disabled={term.status === "closed" || year.status === "closed"} /><span><strong>{year.name} · Term {term.sequence}{term.status === "closed" || year.status === "closed" ? " · CLOSED" : ""}</strong><small>{term.name} · {term.starts_on} to {term.ends_on}</small></span></label>))}</div></fieldset>
               <label className="span-2">Notes<textarea name="notes" /></label>
               <button type="submit">Enroll student</button>
             </form>
