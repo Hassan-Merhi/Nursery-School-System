@@ -362,3 +362,58 @@ The October milestone expects:
 - Remaining salary advances: 250.00
 
 The Step 7 workspace is available at \`/payroll\` to authorized users. Locked payroll items expose payslips under \`/payroll/payslips/[id]\`.
+
+## Step 8 — Net Position, Management & Reports
+
+Implemented:
+
+- Management dashboard for active students, fees due, collected tuition, outstanding receivables, cash, bank, expenses, rent due, payroll due, prepayments, and net position
+- Date-range reporting with historical as-of balances so later transactions do not rewrite earlier reports
+- Currency-aware reporting that never adds unrelated currencies into one total
+- General Ledger with account running balances
+- Trial Balance as of any selected date
+- Profit & Loss for any selected period
+- Balance Sheet / Net Position with an accounting-equation control
+- Direct Cash Flow based on posted cash and bank journal movements
+- Accounts Receivable and Accounts Payable as-of reports
+- Expense and income reports
+- Student, family, enrollment, fee, discount, outstanding-balance, and prepayment reports
+- Salary history, payroll-run, employee-cost, and salary-advance reports from the Step 7 payroll ledger
+- Printable invoices, payment receipts, family statements, payslips, expense vouchers, and supplier statements
+- Permission-controlled CSV exports with spreadsheet-formula protection
+- Dedicated management/report permissions automatically granted to the built-in Administrator role
+- CI reconciliation for the October 2026 Milestone 8 sample period
+
+### Reporting integrity rules
+
+Financial reports read posted and reversed journal entries; draft journals never enter management totals. Balance reports are computed **as of** the selected end date, while Profit & Loss and cash flow use the selected date range. Student receivables, supplier payables, parent credits, rent payable, and salary payable are derived from the source ledgers and posted accounting rather than maintained as duplicate management balances.
+
+All financial totals remain separated by currency. The management layer does not invent a converted grand total unless an explicit exchange-rate system is added later.
+
+“Expected fees” means issued invoice amounts due inside the selected period. “Collected fees” means parent payments received inside the selected period and allocated to invoices by the report end date. Unallocated parent money stays visible separately as prepayments, so it is not double-counted as tuition collected.
+
+### Milestone 8 — October 2026 reconciliation
+
+CI builds an independent October 2026 sample period and checks the management reports against known manual totals. On the complete Step 7 + Step 8 stack it verifies:
+
+- Active students: 2
+- Expected fees due: USD 2,000.00
+- Collected fees allocated to invoices: USD 1,400.00
+- Student receivables: USD 600.00
+- Parent prepayment: USD 100.00
+- Bank: USD 1,100.00
+- Cash: USD 100.00
+- Rent due: USD 500.00
+- Payroll due: USD 700.00
+- Total expenses: USD 1,500.00
+- Income: USD 2,000.00
+- Assets: USD 1,800.00
+- Liabilities: USD 1,300.00
+- Current surplus / net position: USD 500.00
+- Trial balance debits: USD 3,300.00
+- Trial balance credits: USD 3,300.00
+- Accounting equation difference: USD 0.00
+- Net cash movement: USD 1,200.00
+
+The Step 8 workspace is available at `/reports` to authorized users.
+
