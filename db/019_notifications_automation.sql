@@ -359,12 +359,11 @@ begin
   end if;
 
   update system_notification n
-  set status='resolved', resolved_at=now(), updated_at=now()
+  set status='resolved', resolved_at=now(), updated_at=now(), snoozed_until=null
   from notification_rule r
   where r.rule_key=n.rule_key
-    and r.enabled
-    and n.status in ('open','snoozed')
-    and n.last_refresh_run_id is distinct from v_run_id;
+    and n.status in ('open','snoozed','acknowledged')
+    and (not r.enabled or n.last_refresh_run_id is distinct from v_run_id);
   get diagnostics v_resolved = row_count;
 
   return query
