@@ -997,4 +997,13 @@ left join costs c on c.month_start=m.month_start and c.currency=m.currency
 left join income i on i.month_start=m.month_start and i.currency=m.currency;
 
 insert into permission(key,description) values
-  ('inventory.view','View ingredients, stock levels, purchases, valuation, alerts and food cost summaries'),
+  ('inventory.view','View ingredients, stock levels, purchases, valuation, alerts and food cost summaries'),  ('inventory.manage','Create and maintain ingredients and stock settings'),
+  ('inventory.purchase','Create purchase orders and draft stock receipts'),
+  ('inventory.post','Post and reverse inventory receipts and their supplier payables'),
+  ('inventory.adjust','Record and reverse ingredient usage, waste, spoilage and stock corrections')
+on conflict (key) do update set description=excluded.description;
+
+insert into role_permission(role_id,permission_key)
+select r.id,p.key from role r cross join permission p
+where lower(r.name)='administrator'
+on conflict do nothing;
