@@ -56,6 +56,7 @@ export default async function BillingPage({
   const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
   const canAccounting = ["accounting.view","accounting.manage","accounting.post","accounting.period_lock","accounting.mapping"].some(can);
+  const canOperations = ["expenses.view","expenses.manage","expenses.approve","expenses.post","suppliers.view","suppliers.manage","banking.view","banking.manage","banking.reconcile","recurring_expenses.view","recurring_expenses.manage","refunds.manage"].some(can);
   const allowed = [
     "billing.view",
     "billing.manage",
@@ -80,6 +81,15 @@ export default async function BillingPage({
         "select value #>> '{}' as currency from app_setting where key='currency'",
       )
     ).rows[0]?.currency ?? "USD";
+
+  const cashBankAccounts =
+    can("payments.view") || can("payments.manage")
+      ? (
+          await query<BasicRow>(
+            "select account_id,display_name,account_kind,currency,balance from cash_bank_balance where is_active=true order by account_kind,display_name",
+          )
+        ).rows
+      : [];
 
   const configuration =
     can("discounts.view") || can("discounts.manage") || can("discounts.approve")
@@ -254,10 +264,12 @@ export default async function BillingPage({
       ? (
           await query<BasicRow>(
             `select p.*,f.family_number,f.display_name as family_name,
-               s.student_number,concat_ws(' ',s.first_name,s.last_name) as student_name
+               s.student_number,concat_ws(' ',s.first_name,s.last_name) as student_name,
+               a.name as payment_account_name
              from payment_balance p
              join family f on f.id=p.family_id
              left join student s on s.id=p.student_id
+             left join account a on a.id=p.payment_account_id
              order by p.created_at desc
              limit 200`,
           )
@@ -348,6 +360,7 @@ export default async function BillingPage({
         <div className="top-actions">
           <Link className="button-link secondary-link" href="/students">Families & students</Link>
           {canAccounting ? <Link className="button-link secondary-link" href="/accounting">Accounting</Link> : null}
+          {canOperations ? <Link className="button-link secondary-link" href="/operations">Operations</Link> : null}
           <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
         </div>
       </header>
@@ -766,15 +779,28 @@ export default async function BillingPage({
               <label>Currency<input name="currency" maxLength={3} defaultValue={currencySetting} required /></label>
               <label>Date<input name="received_on" type="date" defaultValue={today} required /></label>
               <label>
+                Receive into
+                <select name="payment_account_id" defaultValue="">
+                  <option value="">Default mapped payment asset</option>
+                  {cashBankAccounts.map((account) => (
+                    <option key={account.account_id} value={account.account_id}>
+                      {account.display_name} · {account.account_kind} · {moneyLabel(account.balance, account.currency)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 Method
                 <select name="method" defaultValue="cash">
                   <option value="cash">Cash</option>
                   <option value="card">Card</option>
                   <option value="bank_transfer">Bank transfer</option>
-                  <option value="check">Check</option>
+                  <option value="check">Cheque</option>
                   <option value="other">Other</option>
                 </select>
               </label>
+              <label>Cheque number<input name="cheque_number" /></label>
+              <label>Cheque due date<input type="date" name="cheque_due_on" /></label>
               <label>Reference<input name="reference" /></label>
               <label>Notes<input name="notes" /></label>
               <button type="submit">Record payment</button>
@@ -783,12 +809,14 @@ export default async function BillingPage({
 
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Receipt</th><th>Family / student</th><th>Amount</th><th>Allocated</th><th>Available</th><th>Type</th><th>Status</th><th /></tr></thead>
+              <thead><tr><th>Receipt</th><th>Family / student</th><th>Received into</th><th>Method</th><th>Amount</th><th>Allocated</th><th>Available</th><th>Type</th><th>Status</th><th /></tr></thead>
               <tbody>
                 {payments.map((payment) => (
                   <tr key={payment.id}>
                     <td>{payment.receipt_number}</td>
                     <td>{payment.family_number} · {payment.family_name}{payment.student_name ? ` · ${payment.student_name}` : ""}</td>
+                    <td>{payment.payment_account_name ?? "Default mapped asset"}</td>
+                    <td>{payment.method === "check" ? "Cheque" : payment.method.replaceAll("_", " ")}</td>
                     <td>{moneyLabel(payment.amount, payment.currency)}</td>
                     <td>{moneyLabel(payment.allocated_amount, payment.currency)}</td>
                     <td>{moneyLabel(payment.unallocated_amount, payment.currency)}</td>
