@@ -83,6 +83,7 @@ create table if not exists system_notification (
   metadata jsonb not null default '{}'::jsonb,
   first_detected_on date not null default current_date,
   last_detected_on date not null default current_date,
+  last_refresh_run_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (rule_key, source_type, source_id, occurrence_key),
@@ -103,10 +104,13 @@ as $$
 declare
   v_before integer;
   v_resolved integer := 0;
+  v_run_id uuid := gen_random_uuid();
 begin
   if p_as_of is null then
     raise exception 'Notification refresh date is required';
   end if;
+
+  perform pg_advisory_xact_lock(hashtext('refresh_system_notifications'));
 
   select count(*) into v_before from system_notification;
 
@@ -117,7 +121,7 @@ begin
   -- Fee invoices approaching due date.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    family_id,recipient_email,metadata,first_detected_on,last_detected_on
+    family_id,recipient_email,metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'invoice',i.id,i.due_on::text,i.due_on,r.severity,
@@ -127,7 +131,7 @@ begin
     i.family_id,
     pg.email,
     jsonb_build_object('invoice_number',i.invoice_number,'balance',b.balance_amount,'currency',i.currency,'student_id',i.student_id),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join invoice_balance b on true
   join invoice i on i.id=b.id
@@ -146,14 +150,14 @@ begin
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
       family_id=excluded.family_id,recipient_email=excluded.recipient_email,metadata=excluded.metadata,
-      last_detected_on=p_as_of,updated_at=now(),
+      last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Outstanding fee invoices past due.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    family_id,recipient_email,metadata,first_detected_on,last_detected_on
+    family_id,recipient_email,metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'invoice',i.id,i.due_on::text,i.due_on,r.severity,
@@ -162,7 +166,7 @@ begin
     i.family_id,
     pg.email,
     jsonb_build_object('invoice_number',i.invoice_number,'balance',b.balance_amount,'currency',i.currency,'student_id',i.student_id),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join invoice_balance b on true
   join invoice i on i.id=b.id
@@ -181,14 +185,14 @@ begin
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
       family_id=excluded.family_id,recipient_email=excluded.recipient_email,metadata=excluded.metadata,
-      last_detected_on=p_as_of,updated_at=now(),
+      last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Rent schedule periods due soon or overdue.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    metadata,first_detected_on,last_detected_on
+    metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'rent_schedule',b.id,b.due_on::text,b.due_on,r.severity,
@@ -196,7 +200,7 @@ begin
     a.property_name||' has '||b.outstanding_amount::text||' '||b.currency||
       ' outstanding for the period due '||b.due_on::text||'.',
     jsonb_build_object('agreement_id',a.id,'agreement_number',a.agreement_number,'property_name',a.property_name,'balance',b.outstanding_amount,'currency',b.currency),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join rent_schedule_balance b on true
   join rental_agreement a on a.id=b.rental_agreement_id
@@ -206,21 +210,21 @@ begin
     and b.due_on<=(p_as_of+r.lead_days)
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-      metadata=excluded.metadata,last_detected_on=p_as_of,updated_at=now(),
+      metadata=excluded.metadata,last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Supplier invoices due soon or overdue.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    metadata,first_detected_on,last_detected_on
+    metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'supplier_invoice',b.id,b.due_on::text,b.due_on,r.severity,
     'Supplier payment due: '||b.supplier_invoice_number,
     s.name||' is owed '||b.balance_amount::text||' '||b.currency||' due '||b.due_on::text||'.',
     jsonb_build_object('supplier_id',s.id,'supplier_name',s.name,'invoice_number',b.supplier_invoice_number,'balance',b.balance_amount,'currency',b.currency),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join supplier_invoice_balance b on true
   join supplier s on s.id=b.supplier_id
@@ -230,21 +234,21 @@ begin
     and b.due_on<=(p_as_of+r.lead_days)
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-      metadata=excluded.metadata,last_detected_on=p_as_of,updated_at=now(),
+      metadata=excluded.metadata,last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Payroll runs due soon or overdue.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    metadata,first_detected_on,last_detected_on
+    metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'payroll_run',p.id,p.pay_date::text,p.pay_date,r.severity,
     'Payroll reminder: '||p.run_number,
     'Payroll '||p.run_number||' is scheduled for '||p.pay_date::text||' and is currently '||p.status||'.',
     jsonb_build_object('run_number',p.run_number,'status',p.status,'currency',p.currency),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join payroll_run p on true
   where r.rule_key='payroll_reminder' and r.enabled
@@ -252,21 +256,21 @@ begin
     and p.pay_date<=(p_as_of+r.lead_days)
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-      metadata=excluded.metadata,last_detected_on=p_as_of,updated_at=now(),
+      metadata=excluded.metadata,last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Upcoming term starts.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    metadata,first_detected_on,last_detected_on
+    metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'school_term',t.id,t.starts_on::text,t.starts_on,r.severity,
     'Term starts: '||t.name,
     y.name||' · '||t.name||' starts on '||t.starts_on::text||'.',
     jsonb_build_object('school_year_id',y.id,'school_year',y.name,'term',t.name),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join school_term t on true
   join school_year y on y.id=t.school_year_id
@@ -275,21 +279,21 @@ begin
     and t.starts_on between p_as_of and (p_as_of+r.lead_days)
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-      metadata=excluded.metadata,last_detected_on=p_as_of,updated_at=now(),
+      metadata=excluded.metadata,last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Active rental agreements approaching expiry.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    metadata,first_detected_on,last_detected_on
+    metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'rental_agreement',a.id,a.end_on::text,a.end_on,r.severity,
     'Contract expiry: '||a.agreement_number,
     a.property_name||' rental agreement ends on '||a.end_on::text||'.',
     jsonb_build_object('agreement_number',a.agreement_number,'property_name',a.property_name,'landlord_id',a.landlord_id),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join rental_agreement a on true
   where r.rule_key='contract_expiry' and r.enabled
@@ -297,14 +301,14 @@ begin
     and a.end_on between p_as_of and (p_as_of+r.lead_days)
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-      metadata=excluded.metadata,last_detected_on=p_as_of,updated_at=now(),
+      metadata=excluded.metadata,last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
   -- Employee document expiries.
   insert into system_notification(
     rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-    employee_id,metadata,first_detected_on,last_detected_on
+    employee_id,metadata,first_detected_on,last_detected_on,last_refresh_run_id
   )
   select
     r.rule_key,'employee_document_expiry',d.id,d.expires_on::text,d.expires_on,r.severity,
@@ -312,7 +316,7 @@ begin
     e.first_name||' '||e.last_name||' · '||d.document_name||' expires on '||d.expires_on::text||'.',
     e.id,
     jsonb_build_object('employee_number',e.employee_number,'employee_name',e.first_name||' '||e.last_name,'document_name',d.document_name,'document_number',d.document_number),
-    p_as_of,p_as_of
+    p_as_of,p_as_of,v_run_id
   from notification_rule r
   join employee_document_expiry d on true
   join employee e on e.id=d.employee_id
@@ -322,7 +326,7 @@ begin
     and d.expires_on<=(p_as_of+r.lead_days)
   on conflict (rule_key,source_type,source_id,occurrence_key) do update
   set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-      employee_id=excluded.employee_id,metadata=excluded.metadata,last_detected_on=p_as_of,updated_at=now(),
+      employee_id=excluded.employee_id,metadata=excluded.metadata,last_detected_on=p_as_of,last_refresh_run_id=v_run_id,updated_at=now(),
       status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
       resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end;
 
@@ -333,7 +337,7 @@ begin
     execute $inventory$
       insert into system_notification(
         rule_key,source_type,source_id,occurrence_key,due_on,severity,title,message,
-        metadata,first_detected_on,last_detected_on
+        metadata,first_detected_on,last_detected_on,last_refresh_run_id
       )
       select
         r.rule_key,'food_inventory',s.source_id,s.source_id::text,$1,r.severity,
@@ -341,17 +345,17 @@ begin
         s.item_name||' is at '||s.current_quantity::text||' '||coalesce(s.unit_name,'')||
           '; reorder level is '||s.reorder_level::text||'.',
         jsonb_build_object('item_name',s.item_name,'current_quantity',s.current_quantity,'reorder_level',s.reorder_level,'unit_name',s.unit_name),
-        $1,$1
+        $1,$1,$2
       from notification_rule r
       join inventory_low_stock_notification_source s on true
       where r.rule_key='low_food_inventory' and r.enabled
         and s.current_quantity<=s.reorder_level
       on conflict (rule_key,source_type,source_id,occurrence_key) do update
       set due_on=excluded.due_on,severity=excluded.severity,title=excluded.title,message=excluded.message,
-          metadata=excluded.metadata,last_detected_on=$1,updated_at=now(),
+          metadata=excluded.metadata,last_detected_on=$1,last_refresh_run_id=$2,updated_at=now(),
           status=case when system_notification.status='resolved' then 'open' else system_notification.status end,
           resolved_at=case when system_notification.status='resolved' then null else system_notification.resolved_at end
-    $inventory$ using p_as_of;
+    $inventory$ using p_as_of,v_run_id;
   end if;
 
   update system_notification n
@@ -360,7 +364,7 @@ begin
   where r.rule_key=n.rule_key
     and r.enabled
     and n.status in ('open','snoozed')
-    and n.last_detected_on<p_as_of;
+    and n.last_refresh_run_id is distinct from v_run_id;
   get diagnostics v_resolved = row_count;
 
   return query
