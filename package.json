@@ -15,7 +15,8 @@
     "verify:students": "node scripts/verify-students.mjs",
     "verify:billing": "node scripts/verify-billing.mjs",
     "verify:accounting": "node scripts/verify-accounting.mjs",
-    "verify:operations": "node scripts/verify-operations.mjs"
+    "verify:operations": "node scripts/verify-operations.mjs",
+    "verify:rentals": "node scripts/verify-rentals.mjs"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
