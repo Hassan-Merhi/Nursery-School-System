@@ -112,9 +112,11 @@ export default async function BillingPage({
       name: string;
       starts_on: string;
       ends_on: string;
+      status: string;
+      year_status: string;
     }>(
       `select t.id,t.school_year_id,y.name as year_name,t.sequence,t.name,
-         t.starts_on::text,t.ends_on::text
+         t.starts_on::text,t.ends_on::text,t.status,y.status as year_status
        from school_term t
        join school_year y on y.id=t.school_year_id
        order by y.starts_on desc,t.sequence`,
@@ -444,8 +446,8 @@ export default async function BillingPage({
                 <select name="term_id" defaultValue="" required>
                   <option value="" disabled>Select term</option>
                   {terms.map((term) => (
-                    <option key={term.id} value={term.id}>
-                      {term.year_name} · Term {term.sequence} · {term.name}
+                    <option key={term.id} value={term.id} disabled={term.status === "closed" || term.year_status === "closed"}>
+                      {term.year_name} · Term {term.sequence} · {term.name}{term.status === "closed" || term.year_status === "closed" ? " · CLOSED" : ""}
                     </option>
                   ))}
                 </select>
@@ -509,7 +511,7 @@ export default async function BillingPage({
                 <select name="term_id" defaultValue="" required>
                   <option value="" disabled>Select enrolled term</option>
                   {terms.map((term) => (
-                    <option key={term.id} value={term.id}>{term.year_name} · T{term.sequence} · {term.name}</option>
+                    <option key={term.id} value={term.id} disabled={term.status === "closed" || term.year_status === "closed"}>{term.year_name} · T{term.sequence} · {term.name}</option>
                   ))}
                 </select>
               </label>
@@ -639,7 +641,7 @@ export default async function BillingPage({
                 <select name="term_id" defaultValue="" required>
                   <option value="" disabled>Select term</option>
                   {terms.map((term) => (
-                    <option key={term.id} value={term.id}>{term.year_name} · T{term.sequence} · {term.name}</option>
+                    <option key={term.id} value={term.id} disabled={term.status === "closed" || term.year_status === "closed"}>{term.year_name} · T{term.sequence} · {term.name}</option>
                   ))}
                 </select>
               </label>
