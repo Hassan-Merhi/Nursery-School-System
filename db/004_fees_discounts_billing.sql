@@ -891,7 +891,20 @@ select
   0::numeric(12,2),
   p.amount::numeric(12,2)
 from payment p
-where p.status='posted'
+union all
+select
+  p.family_id,
+  p.student_id,
+  coalesce(p.reversed_at::date,p.received_on),
+  p.reversed_at,
+  'payment_reversal',
+  p.id,
+  p.receipt_number,
+  coalesce(p.reversal_reason,'Payment reversed'),
+  p.amount::numeric(12,2),
+  0::numeric(12,2)
+from payment p
+where p.status='reversed'
 union all
 select
   c.family_id,
@@ -905,7 +918,20 @@ select
   0::numeric(12,2),
   c.amount::numeric(12,2)
 from credit_note c
-where c.status='issued';
+union all
+select
+  c.family_id,
+  c.student_id,
+  coalesce(c.reversed_at::date,c.issued_on),
+  c.reversed_at,
+  'credit_note_reversal',
+  c.id,
+  c.credit_note_number,
+  coalesce(c.reversal_reason,'Credit note reversed'),
+  c.amount::numeric(12,2),
+  0::numeric(12,2)
+from credit_note c
+where c.status='reversed';
 
 create or replace view student_ledger as
 select
@@ -935,7 +961,21 @@ select
   0::numeric(12,2),
   p.amount::numeric(12,2)
 from payment p
-where p.status='posted' and p.student_id is not null
+where p.student_id is not null
+union all
+select
+  p.family_id,
+  p.student_id,
+  coalesce(p.reversed_at::date,p.received_on),
+  p.reversed_at,
+  'payment_reversal',
+  p.id,
+  p.receipt_number,
+  coalesce(p.reversal_reason,'Payment reversed'),
+  p.amount::numeric(12,2),
+  0::numeric(12,2)
+from payment p
+where p.student_id is not null and p.status='reversed'
 union all
 select
   p.family_id,
@@ -949,7 +989,22 @@ select
   0::numeric(12,2),
   pa.amount::numeric(12,2)
 from payment_allocation pa
-join payment p on p.id=pa.payment_id and p.status='posted' and p.student_id is null
+join payment p on p.id=pa.payment_id and p.student_id is null
+join invoice i on i.id=pa.invoice_id
+union all
+select
+  p.family_id,
+  i.student_id,
+  coalesce(p.reversed_at::date,p.received_on),
+  p.reversed_at,
+  'payment_allocation_reversal',
+  pa.id,
+  p.receipt_number,
+  coalesce(p.reversal_reason,'Family payment allocation reversed'),
+  pa.amount::numeric(12,2),
+  0::numeric(12,2)
+from payment_allocation pa
+join payment p on p.id=pa.payment_id and p.student_id is null and p.status='reversed'
 join invoice i on i.id=pa.invoice_id
 union all
 select
@@ -964,7 +1019,21 @@ select
   0::numeric(12,2),
   c.amount::numeric(12,2)
 from credit_note c
-where c.status='issued' and c.student_id is not null
+where c.student_id is not null
+union all
+select
+  c.family_id,
+  c.student_id,
+  coalesce(c.reversed_at::date,c.issued_on),
+  c.reversed_at,
+  'credit_note_reversal',
+  c.id,
+  c.credit_note_number,
+  coalesce(c.reversal_reason,'Credit note reversed'),
+  c.amount::numeric(12,2),
+  0::numeric(12,2)
+from credit_note c
+where c.student_id is not null and c.status='reversed'
 union all
 select
   c.family_id,
@@ -978,7 +1047,22 @@ select
   0::numeric(12,2),
   ca.amount::numeric(12,2)
 from credit_note_allocation ca
-join credit_note c on c.id=ca.credit_note_id and c.status='issued' and c.student_id is null
+join credit_note c on c.id=ca.credit_note_id and c.student_id is null
+join invoice i on i.id=ca.invoice_id
+union all
+select
+  c.family_id,
+  i.student_id,
+  coalesce(c.reversed_at::date,c.issued_on),
+  c.reversed_at,
+  'credit_allocation_reversal',
+  ca.id,
+  c.credit_note_number,
+  coalesce(c.reversal_reason,'Family credit allocation reversed'),
+  ca.amount::numeric(12,2),
+  0::numeric(12,2)
+from credit_note_allocation ca
+join credit_note c on c.id=ca.credit_note_id and c.student_id is null and c.status='reversed'
 join invoice i on i.id=ca.invoice_id;
 
 insert into permission(key, description) values
