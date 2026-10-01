@@ -117,6 +117,7 @@ try{
 
   const families=[];
   const students=[];
+  let firstPayment=null;
   for(let i=1;i<=2;i++){
     const family=(await client.query(
       "insert into family(display_name) values ($1) returning id",
@@ -160,6 +161,7 @@ try{
         i===1?"2026-10-03":"2026-10-04",i===1?"bank_transfer":"cash",paymentAccount,
       ],
     )).rows[0].id;
+    if(i===1)firstPayment=payment;
     await client.query("select accounting_post_payment($1,null)",[payment]);
     const allocation=(await client.query(
       "insert into payment_allocation(payment_id,invoice_id,amount,allocated_on) values ($1,$2,$3,$4) returning id",
@@ -228,12 +230,7 @@ try{
   // Without payroll: expenses 800 = 300 supplies + 500 rent; liabilities 600; net position 1,200.
   // With Step 7 installed: add payroll expense/payable 700, so expenses 1,500,
   // liabilities 1,300 and net position 500. Cash is unchanged because payroll remains unpaid.
-  const active=await client.query(
-    `select count(distinct s.id)::int count
-     from student s join student_enrollment se on se.student_id=s.id
-     where s.status='active' and se.status='enrolled'
-       and se.starts_on<='2026-10-31' and (se.withdrawal_on is null or se.withdrawal_on>'2026-10-31')`,
-  );
+  const active=await client.query("select report_active_student_count('2026-10-31') count");
   assert.equal(active.rows[0].count,2,"Dashboard active students");
 
   assert.equal(await amount(
@@ -336,7 +333,63 @@ try{
   );
   assert.equal(ledgerControl.rows[0].debit,ledgerControl.rows[0].credit,"Period ledger debits and credits");
 
-  console.log("Step 8 verification passed: October 2026 manual totals match management reports exactly.");
+  // Historical integrity: later operational changes must not rewrite October.
+  await client.query(
+    "insert into accounting_period(name,starts_on,ends_on) values ($1,'2026-11-01','2026-11-30')",
+    ["CI Step8 November "+suffix],
+  );
+  assert.ok(firstPayment,"Expected the first sample payment");
+  await client.query(
+    "update payment set status='reversed',reversed_at=now(),reversal_reason='Future-effective CI reversal' where id=$1",
+    [firstPayment],
+  );
+  await client.query(
+    "select accounting_reverse_payment($1,'2026-11-05',null,'Future-effective CI reversal')",
+    [firstPayment],
+  );
+  assert.equal(await amount(
+    "select coalesce(sum(balance_amount),0)::numeric(14,2)::text amount from report_receivables('2026-10-31')",
+  ),"600.00","A November payment reversal must not rewrite October receivables");
+  assert.equal(await amount(
+    "select coalesce(sum(available_credit),0)::numeric(14,2)::text amount from report_family_credits('2026-10-31')",
+  ),"100.00","A November payment reversal must not rewrite October prepayments");
+  assert.equal(await amount(
+    "select coalesce(sum(balance_amount),0)::numeric(14,2)::text amount from report_receivables('2026-11-05')",
+  ),"1600.00","The payment reversal must take effect on its accounting posting date");
+  assert.equal(await amount(
+    "select coalesce(sum(available_credit),0)::numeric(14,2)::text amount from report_family_credits('2026-11-05')",
+  ),"0.00","Reversed parent credit must clear on the reversal posting date");
+
+  const enrollmentId=(await client.query(
+    "select id from student_enrollment where student_id=$1 and school_year_id=$2",
+    [students[0],year],
+  )).rows[0].id;
+  await client.query(
+    "update student_enrollment set status='withdrawn',withdrawal_on='2026-11-15',withdrawal_reason='CI future withdrawal' where id=$1",
+    [enrollmentId],
+  );
+  await client.query(
+    "update student_term_enrollment set status='withdrawn',ends_on='2026-11-15' where enrollment_id=$1 and term_id=$2",
+    [enrollmentId,term],
+  );
+  await client.query(
+    "update student set status='withdrawn',exit_date='2026-11-15' where id=$1",
+    [students[0]],
+  );
+  assert.equal((await client.query("select report_active_student_count('2026-10-31') count")).rows[0].count,2,
+    "A later withdrawal must not rewrite October active-student count");
+  assert.equal((await client.query("select report_active_student_count('2026-11-15') count")).rows[0].count,1,
+    "Withdrawal must stop active status on its effective date");
+  assert.equal((await client.query("select report_active_student_count('2027-01-15') count")).rows[0].count,0,
+    "Students must not remain active outside their enrolled term");
+
+  await client.query("update cash_bank_account set is_active=false where account_id=$1",[cash]);
+  assert.equal(await amount(
+    "select balance::numeric(14,2)::text amount from report_cash_bank_balances('2026-10-31') where account_id=$1",
+    [cash],
+  ),"100.00","Deactivating a cash account must not erase it from historical balances");
+
+  console.log("Step 8 verification passed: October 2026 manual totals and historical report integrity match exactly.");
   await client.query("rollback");
 } catch(error){
   try{await client.query("rollback");}catch{}
