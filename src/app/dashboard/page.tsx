@@ -46,6 +46,7 @@ export default async function DashboardPage({
   const canStep7 = ["employees.view","employees.manage","payroll.view","payroll.manage","payroll.approve","payroll.lock","payroll.pay","salary_advances.manage"].some(can);
   const canStep8 = ["management.view","reports.view","reports.export","report_documents.view"].some(can);
   const canStep10 = ["food.view","food.manage","food.billing","food.payments"].some(can);
+  const canStep11 = ["inventory.view","inventory.manage","inventory.purchase","inventory.post","inventory.adjust"].some(can);
 
   const profile = can("school_profile.view") || can("school_profile.manage")
     ? (await query("select * from school_profile where id=1")).rows[0]
@@ -178,6 +179,7 @@ export default async function DashboardPage({
           {canStep7 ? <a className="button-link" href="/payroll">Employees & payroll</a> : null}
           {canStep8 ? <a className="button-link" href="/reports">Management & reports</a> : null}
           {canStep10 ? <a className="button-link" href="/food">Food</a> : null}
+          {canStep11 ? <a className="button-link" href="/inventory">Food inventory</a> : null}
           <form action={logoutAction}>
             <button className="secondary" type="submit">Sign out</button>
           </form>
