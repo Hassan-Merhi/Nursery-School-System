@@ -998,13 +998,34 @@ left join income i on i.month_start=m.month_start and i.currency=m.currency;
 
 insert into permission(key,description) values
   ('inventory.view','View ingredients, stock levels, purchases, valuation, alerts and food cost summaries'),
-  ('inventory.manage','Create and maintain ingredients and stock settings'),
-  ('inventory.purchase','Create purchase orders and draft stock receipts'),
-  ('inventory.post','Post and reverse inventory receipts and their supplier payables'),
-  ('inventory.adjust','Record and reverse ingredient usage, waste, spoilage and stock corrections')
+  ('inventory.manage','Create and maintain ingredient and unit setup'),
+  ('inventory.purchase','Create and manage food purchase orders and draft stock receipts'),
+  ('inventory.post','Post and reverse stock receipts with supplier payable integration'),
+  ('inventory.adjust','Post and reverse kitchen usage, waste, spoilage and stock-count adjustments')
 on conflict (key) do update set description=excluded.description;
 
 insert into role_permission(role_id,permission_key)
-select r.id,p.key from role r cross join permission p
+select r.id,p.key
+from role r cross join permission p
 where lower(r.name)='administrator'
 on conflict do nothing;
+
+create or replace function protect_inventory_asset_mapping_change()
+returns trigger language plpgsql as $$
+begin
+  if old.role_key='inventory_asset'
+     and new.account_id is distinct from old.account_id
+     and exists (
+       select 1 from ingredient_inventory_balance
+       where inventory_value<>0 or quantity_on_hand<>0
+     ) then
+    raise exception 'Inventory Asset mapping cannot change while inventory is on hand';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger accounting_mapping_inventory_asset_guard
+before update of account_id on accounting_mapping
+for each row
+execute function protect_inventory_asset_mapping_change();
