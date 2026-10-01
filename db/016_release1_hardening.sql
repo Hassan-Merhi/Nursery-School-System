@@ -267,7 +267,7 @@ payroll_ops as (
 ),
 payroll_ledger as (
   select c.currency,m.account_id,a.id matched_account,
-    coalesce(sum(jl.debit-jl.credit),0)::numeric(14,2) amount
+    coalesce(sum(jl.debit-jl.credit) filter (where je.id is not null),0)::numeric(14,2) amount
   from currencies c
   left join accounting_mapping m on m.role_key='payroll_expense'
   left join account a on a.id=m.account_id and a.currency=c.currency
