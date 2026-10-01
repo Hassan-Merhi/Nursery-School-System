@@ -71,9 +71,30 @@ GATE_FUNCTION="$(docker exec -e PGPASSWORD="$DB_PASS" "$CID"   psql -h 127.0.0.1
   exit 1
 }
 
+RELEASE2_GATE_FUNCTION="$(docker exec -e PGPASSWORD="$DB_PASS" "$CID"   psql -h 127.0.0.1 -U "$DB_USER" -d "$RESTORE_DB" -Atc "select count(*) from pg_proc where proname='release2_reconciliation_gate'")"
+[ "$RELEASE2_GATE_FUNCTION" -ge 1 ] || {
+  echo "Restored database is missing the Release 2 reconciliation gate" >&2
+  exit 1
+}
+
+for TABLE in food_bill inventory_movement; do
+  SOURCE_COUNT="$(docker exec -e PGPASSWORD="$DB_PASS" "$CID" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -Atc "select count(*) from $TABLE")"
+  RESTORED_COUNT="$(docker exec -e PGPASSWORD="$DB_PASS" "$CID" psql -h 127.0.0.1 -U "$DB_USER" -d "$RESTORE_DB" -Atc "select count(*) from $TABLE")"
+  [ "$SOURCE_COUNT" = "$RESTORED_COUNT" ] || {
+    echo "Restore $TABLE count mismatch: source=$SOURCE_COUNT restored=$RESTORED_COUNT" >&2
+    exit 1
+  }
+done
+
+LOW_STOCK_VIEW="$(docker exec -e PGPASSWORD="$DB_PASS" "$CID" psql -h 127.0.0.1 -U "$DB_USER" -d "$RESTORE_DB" -Atc "select count(*) from pg_class where relname='inventory_low_stock_notification_source' and relkind='v'")"
+[ "$LOW_STOCK_VIEW" -ge 1 ] || {
+  echo "Restored database is missing the live low-stock notification view" >&2
+  exit 1
+}
+
 docker exec "$CID" tar -tzf "$DOCUMENTS" | grep -q 'sentinel.txt' || {
   echo "Document archive did not contain the restore sentinel" >&2
   exit 1
 }
 
-printf 'Backup/restore verification passed: %s migration(s), %s user(s), database and documents restored.\n'   "$RESTORED_MIGRATIONS" "$RESTORED_USERS"
+printf 'Backup/restore verification passed: %s migration(s), %s user(s), Release 2 food/inventory data, database and documents restored.\n'   "$RESTORED_MIGRATIONS" "$RESTORED_USERS"
