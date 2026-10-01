@@ -467,6 +467,14 @@ try {
         [voidPayment, voidInvoice],
       ),
     );
+    await client.query(
+      "update payment set status='reversed',reversed_at=now(),reversal_reason='Void invoice test cleanup' where id=$1",
+      [voidPayment],
+    );
+    await client.query(
+      "select accounting_reverse_payment($1,'2026-10-06',null,'Void invoice test cleanup')",
+      [voidPayment],
+    );
 
     const limitedUser = (
       await client.query(
