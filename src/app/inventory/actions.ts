@@ -71,6 +71,16 @@ export async function createIngredientAction(d:FormData){
   good("Ingredient created.");
 }
 
+export async function updateIngredientReorderLevelAction(d:FormData){
+  const a=await requirePermission("inventory.manage"),ingredient=id(v(d,"ingredient_id"),"ingredient"),reorder=qty(v(d,"reorder_level")||"0","reorder level",true);
+  await withTransaction(async c=>{
+    const before=(await c.query("select * from ingredient where id=$1 for update",[ingredient])).rows[0];if(!before)bad("Ingredient not found.");
+    await c.query("update ingredient set reorder_level=$2,updated_at=now(),updated_by=$3 where id=$1",[ingredient,reorder,a.userId]);
+    await writeAudit(c,{actorUserId:a.userId,action:"ingredient_reorder_level_changed",entityType:"ingredient",entityId:ingredient,before,after:{reorderLevel:reorder}});
+  });
+  good("Low-stock level updated.");
+}
+
 export async function setIngredientStatusAction(d:FormData){
   const a=await requirePermission("inventory.manage"),ingredient=id(v(d,"ingredient_id"),"ingredient"),status=v(d,"status");
   if(!["active","inactive"].includes(status))bad("Invalid ingredient status.");
