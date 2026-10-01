@@ -81,6 +81,9 @@ as $$
 declare
   v_currency text;
 begin
+  if new.method='check' and coalesce(new.cheque_number,'')='' then
+    raise exception 'Cheque number is required for cheque payments';
+  end if;
   if new.payment_account_id is null then return new; end if;
 
   select a.currency into v_currency
@@ -97,12 +100,9 @@ begin
   if v_currency<>new.currency then
     raise exception 'Student payment and cash/bank account currencies must match';
   end if;
-  if new.method='check' and coalesce(new.cheque_number,'')='' then
-    raise exception 'Cheque number is required for cheque payments';
-  end if;
   return new;
 end;
-$$;
+$;
 
 create trigger student_payment_account_validate
 before insert or update of payment_account_id,currency,method,cheque_number on payment
@@ -171,7 +171,7 @@ create table expense (
   currency text not null check (currency ~ '^[A-Z]{3}$'),
   incurred_on date not null,
   payment_method text not null default 'bank_transfer'
-    check (payment_method in ('cash','card','bank_transfer','check','other')),
+    check (payment_method in ('cash','card','bank_transfer','other')),
   cheque_number text,
   cheque_due_on date,
   reference text,
@@ -706,6 +706,7 @@ create table bank_reconciliation (
   account_id uuid not null references account(id) on delete restrict,
   statement_starts_on date not null,
   statement_ends_on date not null,
+  statement_opening_balance numeric(14,2) not null default 0,
   statement_ending_balance numeric(14,2) not null,
   notes text,
   status text not null default 'draft' check (status in ('draft','completed')),
@@ -824,7 +825,7 @@ with previous as (
         and prior.statement_ends_on<r.statement_starts_on
       order by prior.statement_ends_on desc,prior.created_at desc
       limit 1
-    ),0)::numeric(14,2) as opening_reconciled_balance
+    ),r.statement_opening_balance)::numeric(14,2) as opening_reconciled_balance
   from bank_reconciliation r
 ), movement as (
   select
