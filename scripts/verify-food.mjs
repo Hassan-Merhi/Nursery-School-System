@@ -150,7 +150,9 @@ try{
   await client.query("update student_food_selection set status='ended',ended_at=now() where id=$1",[selection.id]);
   assert.equal((await client.query("select status from student_food_selection where id=$1",[selection.id])).rows[0].status,"ended","A selection must remain closable after its package is archived");
 
+  const draftBeforeClose=(await client.query("insert into food_package(school_year_id,term_id,code,name,package_kind,package_price,currency) values ($1,$2,$3,'CI draft before close','daily',5,'USD') returning id",[year,term,"DRAFT-"+suffix])).rows[0].id;
   await client.query("update school_term set status='closed' where id=$1",[term]);
+  await expectFailure("Closed terms must reject draft package-content changes",()=>client.query("insert into food_package_item(food_package_id,food_item_id,quantity) values ($1,$2,1)",[draftBeforeClose,item]));
   await expectFailure("Closed terms must reject new food packages",()=>client.query("insert into food_package(school_year_id,term_id,code,name,package_kind,package_price,currency) values ($1,$2,$3,'Closed term food','daily',5,'USD')",[year,term,"CLOSED-"+suffix]));
   await expectFailure("Closed terms must reject new food selections",()=>client.query("insert into student_food_selection(family_id,student_id,school_year_id,term_id,food_package_id,unit_price,currency,quantity,starts_on,ends_on) values ($1,$2,$3,$4,$5,20,'USD',1,'2026-10-01','2026-10-07')",[family,student,year,term,packages.weekly]));
 

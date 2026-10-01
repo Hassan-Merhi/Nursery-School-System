@@ -100,12 +100,14 @@ as $$
 declare
   v_package_id uuid;
   v_status text;
+  v_term_id uuid;
 begin
   v_package_id := case when tg_op='DELETE' then old.food_package_id else new.food_package_id end;
-  select status into v_status from food_package where id=v_package_id for update;
+  select status,term_id into v_status,v_term_id from food_package where id=v_package_id for update;
   if v_status is distinct from 'draft' then
     raise exception 'Only draft food packages can change their item composition';
   end if;
+  perform assert_school_term_open(v_term_id);
   if tg_op='DELETE' then return old; end if;
   return new;
 end;
