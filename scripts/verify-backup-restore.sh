@@ -11,6 +11,8 @@ command -v docker >/dev/null 2>&1 || {
 DB_USER="$(node -e 'const u=new URL(process.env.DATABASE_URL);process.stdout.write(decodeURIComponent(u.username))')"
 DB_PASS="$(node -e 'const u=new URL(process.env.DATABASE_URL);process.stdout.write(decodeURIComponent(u.password))')"
 DB_NAME="$(node -e 'const u=new URL(process.env.DATABASE_URL);process.stdout.write(decodeURIComponent(u.pathname.slice(1)))')"
+DB_USER_URL="$(node -e 'const u=new URL(process.env.DATABASE_URL);process.stdout.write(encodeURIComponent(decodeURIComponent(u.username)))')"
+DB_PASS_URL="$(node -e 'const u=new URL(process.env.DATABASE_URL);process.stdout.write(encodeURIComponent(decodeURIComponent(u.password)))')"
 
 CID="${POSTGRES_CONTAINER_ID:-}"
 if [ -z "$CID" ]; then
