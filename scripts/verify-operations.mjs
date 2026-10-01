@@ -177,8 +177,12 @@ try{
   const tb=await client.query("select sum(debit_balance)::numeric(14,2)::text as debit,sum(credit_balance)::numeric(14,2)::text as credit from trial_balance where currency='USD'");
   assert.equal(tb.rows[0].debit,tb.rows[0].credit,"Trial balance must balance");
 
-  const statement=await client.query("select count(*)::int as n from supplier_statement where supplier_id=$1",[supplierId]);
-  assert.ok(statement.rows[0].n>=5,"Supplier statement must include invoices, payments, and credits");
+  const statement=await client.query("select entry_type,running_payable_balance::text as running_payable_balance from supplier_statement where supplier_id=$1 order by entry_date,occurred_at,source_id",[supplierId]);
+  const statementTypes=new Set(statement.rows.map((row)=>row.entry_type));
+  assert.equal(statementTypes.has("invoice"),true,"Supplier statement must include invoices");
+  assert.equal(statementTypes.has("payment"),true,"Supplier statement must include payments");
+  assert.equal(statementTypes.has("credit"),true,"Supplier statement must include credits");
+  assert.equal(statement.rows.at(-1)?.running_payable_balance,"0.00","Supplier statement must end with zero payable balance");
 
   const recon=await client.query("insert into bank_reconciliation(reconciliation_number,account_id,statement_starts_on,statement_ends_on,statement_ending_balance) values ($1,$2,'2026-10-01','2026-10-31',5300.00) returning id",["CI5-REC-BANK-"+suffix,bank]);
   const reconId=recon.rows[0].id;
