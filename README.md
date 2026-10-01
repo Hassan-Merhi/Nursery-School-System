@@ -281,4 +281,84 @@ CI creates a six-month rental agreement at 2,000 per month, prepays 12,000, and 
 The verification also covers unpaid rent becoming Rent Payable, later payment clearing that payable, refundable deposits, payment reversals, recognition reversals, protected attachments, immutable activated terms, and append-only rental history.
 
 The Step 6 workspace is available at `/rentals` to authorized users.
-\n
+
+## Step 7 — Employees, Payroll & Salary Advances
+
+Implemented:
+
+- Employee records and job-title maintenance
+- Append-only salary agreements with effective dates and derived salary history periods
+- Monthly salary snapshots copied into each payroll run
+- Allowances, bonuses, and deductions while payroll is still draft
+- Salary advances paid from configured cash/bank accounts
+- Immutable monthly advance repayment schedules
+- Automatic application of all due advance installments when payroll is locked
+- Payroll runs with draft, pending, approved, locked, and paid states
+- Separate submit, approval, lock, and payment permissions
+- Locked payroll snapshots that cannot be rewritten after posting
+- Printable/viewable payslips generated from locked payroll data
+- Salary Payable accounting and payroll expense posting
+- Payroll payments from configured cash/bank accounts
+- Payroll payment reversals that reopen the run only to the locked state
+- Employee payroll ledger combining salary advances, payroll, repayments, payable, and paid salary
+- Payroll summary reporting
+- Fine-grained permissions for employees, payroll, approvals, locking, payments, and advances
+- CI verification for the complete Milestone 7 scenario
+
+### Salary history rule
+
+Salary history is append-only. Existing salary agreements cannot be updated or deleted.
+
+If an employee changes from 800 per month to 1,000 per month, the system stores two effective salary agreements. The earlier 800 agreement remains part of history, while the later 1,000 agreement becomes effective from its own start date. Payroll runs store the exact salary-agreement snapshot they used, so later raises never rewrite older payroll.
+
+### Payroll accounting flow
+
+Payroll uses three explicit user-configured account roles:
+
+- Payroll Expense — expense
+- Salary Payable — liability
+- Salary Advances — asset
+
+Issuing a salary advance posts:
+
+- Debit Salary Advances
+- Credit Cash/Bank
+
+Locking payroll posts the salary cost and the employee liabilities. Allowances and bonuses increase gross payroll; ordinary payroll deductions reduce payroll expense; due salary-advance repayments reduce the Salary Advances asset; the remaining employee net pay becomes Salary Payable.
+
+Paying the locked payroll posts:
+
+- Debit Salary Payable
+- Credit Cash/Bank
+
+Posted payroll journals are never edited. Payment reversals create reversing journal entries and return the payroll run to the locked state so it can be paid again correctly.
+
+### Milestone 7 verification
+
+CI creates multiple employees and verifies a salary change from 800 to 1,000 without losing the original salary period. It then runs September and October payroll scenarios including:
+
+- Normal salary
+- Allowance
+- Bonus
+- Deduction
+- Two separate salary advances
+- Two advance repayments applied in the same payroll run
+- Payroll submission and approval
+- Payroll locking
+- Salary Payable
+- Bank payment
+- Employee payroll ledger
+- Payroll summary
+- Balanced general ledger
+
+The October milestone expects:
+
+- Gross payroll: 3,000.00
+- Deductions: 100.00
+- Payroll expense: 2,900.00
+- Salary-advance repayments: 250.00
+- Net Salary Payable/payment: 2,650.00
+- Salary Payable after payment: 0.00
+- Remaining salary advances: 250.00
+
+The Step 7 workspace is available at \`/payroll\` to authorized users. Locked payroll items expose payslips under \`/payroll/payslips/[id]\`.
