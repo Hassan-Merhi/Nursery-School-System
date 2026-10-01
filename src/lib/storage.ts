@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 function rootDir() {
@@ -9,6 +9,12 @@ function rootDir() {
 export function maxUploadBytes() {
   const value = Number(process.env.MAX_UPLOAD_BYTES ?? "10485760");
   return Number.isFinite(value) && value > 0 ? value : 10_485_760;
+}
+
+function validateStorageKey(storageKey: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(storageKey)) {
+    throw new Error("Invalid storage key.");
+  }
 }
 
 export async function storeFile(file: File) {
@@ -32,8 +38,11 @@ export async function storeFile(file: File) {
 }
 
 export async function loadFile(storageKey: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(storageKey)) {
-    throw new Error("Invalid storage key.");
-  }
+  validateStorageKey(storageKey);
   return readFile(path.join(rootDir(), storageKey));
+}
+
+export async function removeStoredFile(storageKey: string) {
+  validateStorageKey(storageKey);
+  await unlink(path.join(rootDir(), storageKey));
 }
