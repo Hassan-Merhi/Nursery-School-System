@@ -485,7 +485,7 @@ Implemented:
 
 Notifications are derived from the existing operational records rather than storing a second financial truth. The automation runner can be scheduled with `npm run notifications:run`, or an external scheduler can POST to `/api/automation/notifications` using the configured `AUTOMATION_SECRET`.
 
-Step 11 inventory remains the owner of stock quantities. Step 12 consumes the optional `inventory_low_stock_notification_source` view when it exists, so low-stock alerts activate without coupling the notification engine to an unfinished or duplicate inventory model.
+Step 11 inventory remains the owner of stock quantities. Step 14 binds the authoritative ingredient balance to `inventory_low_stock_notification_source`, so Step 12 low-stock alerts now run directly from live stock and reorder levels without duplicating inventory data.
 
 See [docs/STEP12_NOTIFICATIONS.md](docs/STEP12_NOTIFICATIONS.md) for deployment, scheduling, lifecycle, and inventory-integration details.
 
@@ -514,3 +514,28 @@ Step 13 adds a read-only /analytics workspace over the trusted historical data f
 It includes term comparison, continuous monthly trends, custom-account expense trends, student growth, fee collection rate, food revenue/cost/contribution, aggregate payroll trends, recognized rent impact, consolidated external cash movement, and year-over-year comparison. Monetary analytics never combine currencies. Users need analytics.view, and payroll analytics intentionally expose aggregate values only.
 
 Run npm run verify:analytics after migrations to verify the Step 13 accounting and historical-data invariants. See docs/STEP13_ANALYTICS.md for metric definitions and operating notes.
+
+
+## Step 14 — Release 2 Testing & Hardening
+
+Step 14 applies the Release 1 launch standard to the complete Release 2 stack. The dedicated scratch-database verifier exercises the full food collection and food purchasing chains, including accounting, reports, notifications, analytics, reversals, permission isolation, Release 1-to-Release 2 migration safety, and concurrent-user edge cases.
+
+Run the automated hardening suite:
+
+~~~bash
+npm run db:migrate
+npm run verify:release2
+npm run verify:backup-restore
+~~~
+
+Before a real launch, run the production reconciliation gate at the intended cutoff:
+
+~~~bash
+npm run release2:gate -- --through=YYYY-MM-DD
+~~~
+
+The gate retains every Release 1 reconciliation and adds Food Income, Inventory Asset, and Food Program Expense control-account reconciliation. Every row must pass with a zero difference.
+
+Step 14 also serializes concurrent receipts against the same purchase order to prevent over-receiving and connects real Step 11 low-stock balances to the Step 12 notification engine.
+
+See [docs/RELEASE2_HARDENING.md](docs/RELEASE2_HARDENING.md) for the full test coverage, production gate, backup/restore requirements, and operator UAT checklist.
