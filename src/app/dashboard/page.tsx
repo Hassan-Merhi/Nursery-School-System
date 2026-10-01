@@ -8,6 +8,7 @@ import {
   logoutAction,
   updateRolePermissionsAction,
   updateSchoolProfileAction,
+  updateSchoolTermStatusAction,
   updateSettingsAction,
   updateUserAccessAction,
 } from "./actions";
@@ -55,7 +56,7 @@ export default async function DashboardPage({
           `select y.id,y.name,y.starts_on,y.ends_on,y.status,
              coalesce(json_agg(
                json_build_object(
-                 'sequence',t.sequence,'name',t.name,
+                 'id',t.id,'sequence',t.sequence,'name',t.name,'status',t.status,
                  'starts_on',t.starts_on,'ends_on',t.ends_on
                ) order by t.sequence
              ) filter (where t.id is not null),'[]') as terms
@@ -275,9 +276,25 @@ export default async function DashboardPage({
                 <div className="term-grid">
                   {(year.terms as any[]).map((term) => (
                     <div key={term.sequence}>
-                      <strong>Term {term.sequence}</strong>
+                      <div className="row-between">
+                        <strong>Term {term.sequence}</strong>
+                        <span className="badge">{term.status}</span>
+                      </div>
                       <span>{term.name}</span>
                       <small>{String(term.starts_on).slice(0, 10)} → {String(term.ends_on).slice(0, 10)}</small>
+                      {can("school_years.manage") ? (
+                        <form action={updateSchoolTermStatusAction} className="compact-form">
+                          <input type="hidden" name="term_id" value={term.id} />
+                          <button
+                            type="submit"
+                            name="status"
+                            value={term.status === "closed" ? "open" : "closed"}
+                            className="secondary"
+                          >
+                            {term.status === "closed" ? "Reopen term" : "Close term"}
+                          </button>
+                        </form>
+                      ) : null}
                     </div>
                   ))}
                 </div>
