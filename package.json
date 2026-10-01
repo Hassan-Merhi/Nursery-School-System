@@ -25,6 +25,7 @@
     "verify:food": "node scripts/verify-food.mjs",
     "verify:inventory": "node scripts/verify-inventory.mjs",
     "verify:notifications": "node scripts/verify-notifications.mjs",
+    "verify:analytics": "node scripts/verify-analytics.mjs",
     "notifications:run": "node scripts/run-notifications.mjs"
   },
   "dependencies": {

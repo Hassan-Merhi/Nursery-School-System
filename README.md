@@ -505,3 +505,12 @@ Implemented on the Step 11 branch:
 - Reversal controls that keep stock and accounting synchronized
 
 See [docs/STEP11_FOOD_INVENTORY.md](docs/STEP11_FOOD_INVENTORY.md) for the accounting model, safeguards, setup, and verification coverage.
+
+
+## Step 13 — Advanced Dashboard & Analysis
+
+Step 13 adds a read-only /analytics workspace over the trusted historical data from enrollment, billing, accounting, payroll, rentals, food billing, and Step 11 food inventory.
+
+It includes term comparison, continuous monthly trends, custom-account expense trends, student growth, fee collection rate, food revenue/cost/contribution, aggregate payroll trends, recognized rent impact, consolidated external cash movement, and year-over-year comparison. Monetary analytics never combine currencies. Users need analytics.view, and payroll analytics intentionally expose aggregate values only.
+
+Run npm run verify:analytics after migrations to verify the Step 13 accounting and historical-data invariants. See docs/STEP13_ANALYTICS.md for metric definitions and operating notes.
