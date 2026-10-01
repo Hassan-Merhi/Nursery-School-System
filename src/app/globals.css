@@ -349,3 +349,43 @@ th { color: var(--muted); font-size: .76rem; text-transform: uppercase; }
   .app-shell { width: 100%; padding: 0; }
   .receipt-sheet { border: 0; box-shadow: none; max-width: none; }
 }
+
+
+/* Step 8 — management and reports */
+.report-filter { margin-bottom: 1rem; }
+.report-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin: 0 0 1rem;
+}
+.report-nav a {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 700;
+  padding: .55rem .85rem;
+  text-decoration: none;
+}
+.report-nav a.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.metric-value { font-size: 1.45rem; margin-bottom: .2rem; }
+.money-stack { display: grid; gap: .15rem; }
+.document-sheet h2 { margin-top: 1.4rem; }
+.document-sheet tfoot th { border-top: 2px solid var(--line); }
+.report-shell .status-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+
+@media (max-width: 760px) {
+  .report-shell .status-grid { grid-template-columns: 1fr; }
+  .report-nav { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .report-nav a { text-align: center; }
+}
+
+@media print {
+  .report-nav, .report-filter { display: none !important; }
+  .document-sheet { border: 0; box-shadow: none; max-width: none; }
+}
