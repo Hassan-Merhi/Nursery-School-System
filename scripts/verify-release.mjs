@@ -720,7 +720,7 @@ try {
 } finally {
   if (pool) await pool.end();
   try {
-    await admin.query('drop database if exists "' + scratchName + '" with (force)');
+    await admin.query('drop database if exists "' + scratchName + '"');
   } finally {
     await admin.end();
   }
