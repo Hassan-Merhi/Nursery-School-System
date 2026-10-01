@@ -126,9 +126,15 @@ async function requireAccountingReady(
 ) {
   await requireOpenAccountingPeriod(client, postingDate);
 
-  const journal = await client.query("select 1 from journal where status='active' limit 1");
+  const journal = await client.query(
+    `select 1
+     from accounting_configuration c
+     join journal j on j.id=c.billing_journal_id
+     where c.id=1 and j.status='active'
+     limit 1`,
+  );
   if (!journal.rowCount) {
-    fail("Create an active accounting journal before posting billing transactions.");
+    fail("Configure an active billing journal in Accounting before posting billing transactions.");
   }
 
   if (roles.length) {
