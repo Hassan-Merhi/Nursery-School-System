@@ -40,7 +40,8 @@ export default async function DashboardPage({
   const canStep2 = ["families.view","families.manage","students.view","students.manage","classes.view","classes.manage","enrollments.view","enrollments.manage","student_documents.view","student_documents.manage","student_history.view"].some(can);
   const canStep3 = ["billing.view","billing.manage","discounts.view","discounts.manage","discounts.approve","payments.view","payments.manage"].some(can);
   const canStep4 = ["accounting.view","accounting.manage","accounting.post","accounting.period_lock","accounting.mapping"].some(can);
-  const canStep5 = ["expenses.view","expenses.manage","expenses.approve","expenses.post","suppliers.view","suppliers.manage","banking.view","banking.manage","banking.reconcile","recurring_expenses.view","recurring_expenses.manage","refunds.manage"].some(can);\n  const canStep6 = ["rentals.view","rentals.manage","rentals.pay","rentals.post","rental_documents.view","rental_documents.manage"].some(can);
+  const canStep5 = ["expenses.view","expenses.manage","expenses.approve","expenses.post","suppliers.view","suppliers.manage","banking.view","banking.manage","banking.reconcile","recurring_expenses.view","recurring_expenses.manage","refunds.manage"].some(can);
+  const canStep6 = ["rentals.view","rentals.manage","rentals.pay","rentals.post","rental_documents.view","rental_documents.manage"].some(can);
 
   const profile = can("school_profile.view") || can("school_profile.manage")
     ? (await query("select * from school_profile where id=1")).rows[0]
@@ -168,7 +169,8 @@ export default async function DashboardPage({
           {canStep2 ? <a className="button-link" href="/students">Families & students</a> : null}
           {canStep3 ? <a className="button-link" href="/billing">Fees & billing</a> : null}
           {canStep4 ? <a className="button-link" href="/accounting">Accounting</a> : null}
-          {canStep5 ? <a className="button-link" href="/operations">Operations</a> : null}\n          {canStep6 ? <a className="button-link" href="/rentals">Rentals</a> : null}
+          {canStep5 ? <a className="button-link" href="/operations">Operations</a> : null}
+          {canStep6 ? <a className="button-link" href="/rentals">Rentals</a> : null}
           <form action={logoutAction}>
             <button className="secondary" type="submit">Sign out</button>
           </form>
