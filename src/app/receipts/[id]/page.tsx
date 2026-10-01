@@ -11,7 +11,7 @@ function money(amount:unknown,currency:string){
 
 export default async function ReceiptPage({params}:{params:Promise<{id:string}>}){
   const auth=await requireUser();
-  if(!auth.permissions.includes("payments.view")&&!auth.permissions.includes("payments.manage"))redirect("/forbidden");
+  if(!["payments.view","payments.manage","report_documents.view"].some((p)=>auth.permissions.includes(p)))redirect("/forbidden");
   const {id}=await params;
   const payment=(await query<any>(
     `select p.*,f.family_number,f.display_name as family_name,

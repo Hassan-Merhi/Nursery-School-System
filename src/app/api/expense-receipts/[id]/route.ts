@@ -7,7 +7,7 @@ export const runtime="nodejs";
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
   const auth=await getAuthContext();
   if(!auth)return new Response("Unauthorized",{status:401});
-  if(!["expenses.view","expenses.manage","expenses.approve","expenses.post"].some((p)=>auth.permissions.includes(p)))return new Response("Forbidden",{status:403});
+  if(!["expenses.view","expenses.manage","expenses.approve","expenses.post","report_documents.view"].some((p)=>auth.permissions.includes(p)))return new Response("Forbidden",{status:403});
   const {id}=await params;
   const r=await query<{storage_key:string;original_name:string;mime_type:string}>("select d.storage_key,d.original_name,d.mime_type from expense_receipt er join stored_document d on d.id=er.document_id where d.id=$1",[id]);
   const doc=r.rows[0];if(!doc)return new Response("Not found",{status:404});
