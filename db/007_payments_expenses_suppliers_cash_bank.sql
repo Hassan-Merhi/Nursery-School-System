@@ -102,7 +102,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 create trigger student_payment_account_validate
 before insert or update of payment_account_id,currency,method,cheque_number on payment
@@ -171,7 +171,7 @@ create table expense (
   currency text not null check (currency ~ '^[A-Z]{3}$'),
   incurred_on date not null,
   payment_method text not null default 'bank_transfer'
-    check (payment_method in ('cash','card','bank_transfer','other')),
+    check (payment_method in ('cash','card','bank_transfer','check','other')),
   cheque_number text,
   cheque_due_on date,
   reference text,
@@ -648,7 +648,7 @@ create table recurring_expense (
     check (frequency in ('monthly','quarterly','yearly')),
   next_due_on date not null,
   payment_method text not null default 'bank_transfer'
-    check (payment_method in ('cash','card','bank_transfer','check','other')),
+    check (payment_method in ('cash','card','bank_transfer','other')),
   reference_prefix text,
   notes text,
   status text not null default 'active' check (status in ('active','paused','ended')),
