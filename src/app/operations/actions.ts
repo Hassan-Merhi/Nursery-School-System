@@ -45,6 +45,16 @@ export async function createCashBankAccountAction(d:FormData){
   await withTransaction(async c=>{await c.query("insert into cash_bank_account(account_id,account_kind,display_name,bank_name,account_identifier,iban,notes,created_by,updated_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$8)",[account,kind,name,v(d,"bank_name")||null,v(d,"account_identifier")||null,v(d,"iban")||null,v(d,"notes")||null,a.userId]);await writeAudit(c,{actorUserId:a.userId,action:"cash_bank_account_created",entityType:"cash_bank_account",entityId:account,after:{kind,displayName:name}});});good("Cash/bank account enabled.");
 }
 
+export async function updateCashBankAccountAction(d:FormData){
+  const a=await requirePermission("banking.manage"),account=id(v(d,"account_id"),"account"),kind=v(d,"account_kind"),name=v(d,"display_name"),active=v(d,"is_active")==="true";
+  if(!["cash","bank"].includes(kind))bad("Choose cash or bank.");if(!name)bad("Display name is required.");
+  await withTransaction(async c=>{
+    const before=(await c.query("select * from cash_bank_account where account_id=$1 for update",[account])).rows[0];if(!before)bad("Cash/bank account not found.");
+    await c.query("update cash_bank_account set account_kind=$2,display_name=$3,bank_name=$4,account_identifier=$5,iban=$6,is_active=$7,updated_at=now(),updated_by=$8 where account_id=$1",[account,kind,name,v(d,"bank_name")||null,v(d,"account_identifier")||null,v(d,"iban")||null,active,a.userId]);
+    await writeAudit(c,{actorUserId:a.userId,action:"cash_bank_account_updated",entityType:"cash_bank_account",entityId:account,before,after:{kind,displayName:name,active}});
+  });good("Cash/bank account updated.");
+}
+
 export async function createSupplierAction(d:FormData){
   const a=await requirePermission("suppliers.manage");const name=v(d,"name");if(!name)bad("Supplier name is required.");const terms=Number.parseInt(v(d,"payment_terms_days")||"0",10);if(!Number.isInteger(terms)||terms<0||terms>3650)bad("Invalid payment terms.");
   await withTransaction(async c=>{const number=await nextNo(c,"supplier",a.userId);const r=await c.query<{id:string}>("insert into supplier(supplier_number,name,contact_name,email,phone,address,tax_number,default_expense_account_id,default_payment_account_id,payment_terms_days,notes,created_by,updated_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) returning id",[number,name,v(d,"contact_name")||null,v(d,"email")||null,v(d,"phone")||null,v(d,"address")||null,v(d,"tax_number")||null,oid(v(d,"default_expense_account_id"),"default expense account"),oid(v(d,"default_payment_account_id"),"default payment account"),terms,v(d,"notes")||null,a.userId]);await writeAudit(c,{actorUserId:a.userId,action:"supplier_created",entityType:"supplier",entityId:r.rows[0].id,after:{supplierNumber:number,name}});});good("Supplier created.");
