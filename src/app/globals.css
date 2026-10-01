@@ -338,3 +338,14 @@ th { color: var(--muted); font-size: .76rem; text-transform: uppercase; }
   .top-actions { width: 100%; flex-direction: column; align-items: stretch; }
   .top-actions .button-link, .top-actions form, .top-actions button { width: 100%; }
 }
+
+
+.receipt-sheet { max-width: 850px; margin: 0 auto; }
+.receipt-sheet hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
+
+@media print {
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .app-shell { width: 100%; padding: 0; }
+  .receipt-sheet { border: 0; box-shadow: none; max-width: none; }
+}
