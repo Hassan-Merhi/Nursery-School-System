@@ -77,6 +77,7 @@ try{
   const foodExpense=await account("A-FCOST","CI Analytics Food Cost","expense");
   const eurCash=await account("A-EUR-CASH","CI Analytics EUR Cash","asset","EUR");
   const eurIncome=await account("A-EUR-INC","CI Analytics EUR Income","income","EUR");
+  const eurExpense=await account("A-EUR-EXP","CI Analytics EUR Expense","expense","EUR");
 
   await client.query("insert into cash_bank_account(account_id,account_kind,display_name) values ($1,'bank','CI Analytics Bank'),($2,'cash','CI Analytics Cash'),($3,'cash','CI Analytics EUR Cash')",[bank,cash,eurCash]);
   for(const [roleKey,accountId] of [["rent_expense",rentExpense],["food_income",foodIncome],["food_program_expense",foodExpense]]){
@@ -109,6 +110,9 @@ try{
   ]);
   await postEntry(journal,"2026-10-05","EUR","analytics_income",randomUUID(),"EUR income",[
     {accountId:eurCash,debit:100},{accountId:eurIncome,credit:100},
+  ]);
+  await postEntry(journal,"2026-10-06","EUR","analytics_expense",randomUUID(),"EUR expense",[
+    {accountId:eurExpense,debit:50},{accountId:eurCash,credit:50},
   ]);
 
   const foodRevenueEntry=await postEntry(journal,"2026-10-08","USD","food_bill",randomUUID(),"Food billing revenue",[
