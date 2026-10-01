@@ -37,6 +37,7 @@ export default async function DashboardPage({
   const auth = await requirePermission("dashboard.view");
   const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
+  const canStep2 = ["families.view","families.manage","students.view","students.manage","classes.view","classes.manage","enrollments.view","enrollments.manage","student_documents.view","student_documents.manage","student_history.view"].some(can);
 
   const profile = can("school_profile.view") || can("school_profile.manage")
     ? (await query("select * from school_profile where id=1")).rows[0]
@@ -160,9 +161,12 @@ export default async function DashboardPage({
             Signed in as {auth.fullName} · {auth.roles.join(", ") || "No role"}
           </p>
         </div>
-        <form action={logoutAction}>
-          <button className="secondary" type="submit">Sign out</button>
-        </form>
+        <div className="top-actions">
+          {canStep2 ? <a className="button-link" href="/students">Families & students</a> : null}
+          <form action={logoutAction}>
+            <button className="secondary" type="submit">Sign out</button>
+          </form>
+        </div>
       </header>
 
       {error ? <div className="notice error">{error}</div> : null}

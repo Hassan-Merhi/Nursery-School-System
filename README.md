@@ -54,3 +54,24 @@ npm run db:seed-admin -- --email=admin@example.com --name="School Administrator"
 ## Backups
 
 See [docs/BACKUPS.md](docs/BACKUPS.md). Production requires an off-site encrypted copy and periodic restore drills.
+
+
+## Step 2 — Families, Students & Enrollment
+
+Implemented:
+
+- Families with generated family numbers
+- Parents/guardians linked to families, including primary guardian, custody, and pickup flags
+- Students with generated student numbers and lifecycle statuses
+- Sibling relationships derived from shared family membership
+- Family-level or student-specific emergency contacts
+- Classes scoped to school years with optional capacity limits
+- School-year enrollment plus explicit term enrollment
+- Mid-term enrollment using the student's actual start date
+- Withdrawal that closes enrollment without deleting the student or prior enrollment data
+- Student document upload/download using the existing protected storage layer
+- Append-only student history for creation, enrollment, withdrawal, status changes, and documents
+- Fine-grained Step 2 permissions, automatically granted to the built-in Administrator role
+- CI verification of the Milestone 2 family → parent → two siblings → Term 1 flow
+
+The Step 2 workspace is available at `/students` to authorized users.

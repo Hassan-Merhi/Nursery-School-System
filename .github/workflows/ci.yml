@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["foundation-security"]
+    branches: ["main", "foundation-security", "step-*"]
   pull_request:
     branches: ["main"]
 
@@ -46,5 +46,6 @@ jobs:
           PASSWORD="CiOnly$(openssl rand -hex 16)Aa1"
           npm run db:seed-admin -- --email=ci-admin@example.invalid --name="CI Administrator" --password="$PASSWORD"
       - run: node scripts/verify-foundation.mjs
+      - run: npm run verify:students
       - run: npm run typecheck
       - run: npm run build
