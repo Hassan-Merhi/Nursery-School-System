@@ -462,3 +462,20 @@ npm run verify:food
 ~~~
 
 The food workspace is available at \`/food\` to authorized users. Before issuing the first food bill, configure the \`food_income\` accounting mapping. The existing billing journal and Accounts Receivable / Customer Deposits mappings remain the control accounts for student financial activity.
+
+
+## Step 11 — Food Inventory & Purchasing
+
+Implemented on the Step 11 branch:
+
+- Ingredients and inventory units
+- Purchase orders and partial receiving
+- Supplier-linked stock receipts and payables
+- Moving-average stock valuation
+- Kitchen usage, waste, spoilage, and stock corrections
+- Low-stock alerts
+- Inventory Asset / Food Program Expense accounting
+- Monthly food purchase, stock, food income, and rough-cost summary
+- Reversal controls that keep stock and accounting synchronized
+
+See [docs/STEP11_FOOD_INVENTORY.md](docs/STEP11_FOOD_INVENTORY.md) for the accounting model, safeguards, setup, and verification coverage.
