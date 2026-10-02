@@ -1,16 +1,13 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required");
-}
 
 const globalForDb = globalThis as unknown as { montikidsPool?: Pool };
 
 export const db =
   globalForDb.montikidsPool ??
   new Pool({
-    connectionString,
+    ...(connectionString ? { connectionString } : {}),
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
