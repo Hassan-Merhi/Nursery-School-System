@@ -1,6 +1,6 @@
+import type { ReactNode } from "react";
 import { query } from "@/lib/db";
 import { requirePermission } from "@/lib/security";
-import { deriveUiProfile } from "@/lib/ui-profile";
 
 type Row = Record<string, any>;
 type MoneyValue = [string, number];
@@ -38,11 +38,28 @@ function MoneyStack({ values }: { values: MoneyValue[] }) {
   );
 }
 
+function OverviewCard({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <a className="home-stat-card" href={href}>
+      <span className="home-stat-label">{label}</span>
+      <strong className="home-stat-value">{children}</strong>
+      <span className="home-stat-open">View details <span aria-hidden="true">→</span></span>
+    </a>
+  );
+}
+
 export default async function DashboardPage() {
   const auth = await requirePermission("dashboard.view");
   const can = (permission: string) => auth.permissions.includes(permission);
   const any = (permissions: string[]) => permissions.some(can);
-  const profile = deriveUiProfile(auth.permissions, auth.roles);
 
   const canStudents = any([
     "students.view","students.manage","families.view","families.manage",
@@ -83,7 +100,6 @@ export default async function DashboardPage() {
   const today = clock?.today ?? new Date().toISOString().slice(0, 10);
   const monthStart = clock?.month_start ?? today.slice(0, 8) + "01";
   const monthEnd = clock?.month_end ?? today;
-
   const emptyRows = () => Promise.resolve({ rows: [] as Row[] });
 
   const [
@@ -95,10 +111,7 @@ export default async function DashboardPage() {
     cashBankResult,
     rentDueResult,
     payrollDueResult,
-    upcomingRentResult,
-    upcomingPayrollResult,
     alertCountResult,
-    alertsResult,
   ] = await Promise.all([
     canStudents
       ? query<Row>("select report_active_student_count($1::date) as count", [today])
@@ -134,7 +147,7 @@ export default async function DashboardPage() {
       ? query<Row>(
           `select * from report_payables($1::date)
            where balance_amount<>0 and due_on<=$1::date
-           order by due_on,supplier_invoice_number limit 50`,
+           order by due_on,supplier_invoice_number`,
           [today],
         )
       : emptyRows(),
@@ -159,325 +172,87 @@ export default async function DashboardPage() {
           [today],
         )
       : emptyRows(),
-    canRent
-      ? query<Row>(
-          `select s.due_on,s.currency,
-             greatest(s.amount-coalesce(s.paid_amount,0),0)::numeric(14,2)::text amount_due,
-             a.agreement_number,a.property_name
-           from rent_schedule_balance s
-           join rental_agreement a on a.id=s.rental_agreement_id
-           where s.due_on between $1::date and ($1::date + interval '30 days')
-             and greatest(s.amount-coalesce(s.paid_amount,0),0)>0
-           order by s.due_on,a.agreement_number limit 5`,
-          [today],
-        )
-      : emptyRows(),
-    canPayroll
-      ? query<Row>(
-          `select run_number,pay_date,currency,net_pay,status
-           from payroll_run_summary
-           where pay_date between $1::date and ($1::date + interval '30 days')
-             and status in ('draft','pending','approved','locked')
-           order by pay_date,run_number limit 5`,
-          [today],
-        )
-      : emptyRows(),
     canAlerts
       ? query<Row>("select count(*)::int count from system_notification where status in ('open','snoozed')")
-      : emptyRows(),
-    canAlerts
-      ? query<Row>(
-          `select id,title,message,due_on,severity,status
-           from system_notification
-           where status in ('open','snoozed')
-           order by case severity when 'critical' then 1 when 'warning' then 2 else 3 end,
-                    due_on nulls last,created_at desc
-           limit 6`,
-        )
       : emptyRows(),
   ]);
 
   const activeStudents = Number(activeStudentsResult.rows[0]?.count ?? 0);
-  const receivables = receivablesResult.rows;
-  const payables = payablesResult.rows;
-  const cashBank = cashBankResult.rows;
-  const outstandingFees = currencyTotals(receivables, "balance_amount");
-  const supplierDue = currencyTotals(payables, "balance_amount");
+  const outstandingFees = currencyTotals(receivablesResult.rows, "balance_amount");
+  const supplierDue = currencyTotals(payablesResult.rows, "balance_amount");
   const expectedFees = expectedResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
   const collectedFees = collectedResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
-  const cash = currencyTotals(cashBank.filter((row) => row.account_kind === "cash"), "balance");
-  const bank = currencyTotals(cashBank.filter((row) => row.account_kind === "bank"), "balance");
+  const cash = currencyTotals(cashBankResult.rows.filter((row) => row.account_kind === "cash"), "balance");
+  const bank = currencyTotals(cashBankResult.rows.filter((row) => row.account_kind === "bank"), "balance");
   const rentDue = rentDueResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
   const payrollDue = payrollDueResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
-  const overdueFees = receivables.filter((row) => String(row.due_on ?? "").slice(0, 10) < today).length;
-  const overdueSupplierBills = payables.filter((row) => String(row.due_on ?? "").slice(0, 10) < today).length;
   const alertCount = Number(alertCountResult.rows[0]?.count ?? 0);
-  const attentionVisible = canFees || canSuppliers || canRent || canPayroll || canAlerts;
 
-  const quickTasks = [
-    {
-      href: "/students/admissions",
-      eyebrow: "Admissions",
-      title: "Enroll a child",
-      description: "Create or find a family, add the child and finish enrollment.",
-      show: can("families.manage") && can("students.manage") && can("enrollments.manage"),
-      profiles: ["administrator","reception"],
-    },
-    {
-      href: "/billing",
-      eyebrow: "Parents",
-      title: "Record tuition / find balance",
-      description: "Find the family, see the balance, take payment and open the receipt.",
-      show: canFees,
-      profiles: ["administrator","reception","accounting"],
-    },
-    {
-      href: "/classroom",
-      eyebrow: "Students",
-      title: "Open classroom",
-      description: "Roster and classroom-safe student information.",
-      show: canStudents,
-      profiles: ["teacher"],
-    },
-    {
-      href: "/money#expenses",
-      eyebrow: "Expenses",
-      title: "Add an expense",
-      description: "Record an everyday expense without opening the accounting ledger.",
-      show: can("expenses.manage"),
-      profiles: ["administrator","accounting"],
-    },
-    {
-      href: "/staff",
-      eyebrow: "Payroll",
-      title: "Run payroll",
-      description: "Start from staff, then continue the current payroll workflow.",
-      show: canPayroll,
-      profiles: ["administrator","payroll"],
-    },
-    {
-      href: "/food/purchases",
-      eyebrow: "Food",
-      title: "Buy food stock",
-      description: "Review or create food purchases and receiving work.",
-      show: can("inventory.purchase"),
-      profiles: ["administrator","food","accounting"],
-    },
-    {
-      href: "/accounting",
-      eyebrow: "Accounting",
-      title: "Open accounting controls",
-      description: "Journals, mappings, periods and ledger controls.",
-      show: any(["accounting.view","accounting.manage","accounting.post","accounting.mapping"]),
-      profiles: ["administrator","accounting"],
-    },
-  ].filter((task) => task.show && task.profiles.includes(profile.kind));
+  const hasSchoolOverview = canStudents || canFees || canAlerts;
+  const hasMoneyOverview = canCash || canSuppliers || canRent || canPayroll;
 
   return (
-    <main className="app-shell dashboard-shell">
-      <header className="dashboard-hero">
-        <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>{profile.homeTitle}</h1>
-          <p className="muted">
-            {today} · Signed in as {auth.fullName}. {profile.homeDescription}
-          </p>
-        </div>
+    <main className="app-shell dashboard-shell home-dashboard">
+      <header className="home-header">
+        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
+        <h1>Home</h1>
+        <p className="muted">{today} · {auth.fullName}</p>
       </header>
 
-      {quickTasks.length ? (
-        <section className="role-task-grid" aria-label="Common tasks">
-          {quickTasks.map((task) => (
-            <a className="role-task-card" href={task.href} key={task.href}>
-              <p className="eyebrow">{task.eyebrow}</p>
-              <h2>{task.title}</h2>
-              <p className="muted">{task.description}</p>
-              <span>Start →</span>
-            </a>
-          ))}
+      {hasSchoolOverview ? (
+        <section className="home-section" aria-labelledby="school-overview-title">
+          <div className="home-section-heading">
+            <h2 id="school-overview-title">School overview</h2>
+          </div>
+          <div className="home-stat-grid">
+            {canStudents ? (
+              <OverviewCard href="/students" label="Active students">{activeStudents}</OverviewCard>
+            ) : null}
+            {canFees ? (
+              <OverviewCard href="/billing" label="Expected this month"><MoneyStack values={expectedFees} /></OverviewCard>
+            ) : null}
+            {canFees ? (
+              <OverviewCard href="/billing" label="Collected this month"><MoneyStack values={collectedFees} /></OverviewCard>
+            ) : null}
+            {canFees ? (
+              <OverviewCard href="/billing" label="Outstanding fees"><MoneyStack values={outstandingFees} /></OverviewCard>
+            ) : null}
+            {canAlerts ? (
+              <OverviewCard href="/notifications" label="Open alerts">{alertCount}</OverviewCard>
+            ) : null}
+          </div>
         </section>
       ) : null}
 
-      {attentionVisible ? (
-        <section className="attention-grid" aria-label="Items needing attention">
-          {canFees ? (
-            <a className="attention-card" href="/billing">
-              <p className="eyebrow">Outstanding fees</p>
-              <h2><MoneyStack values={outstandingFees} /></h2>
-              <p className="muted">{overdueFees} overdue invoice{overdueFees === 1 ? "" : "s"}.</p>
-            </a>
-          ) : null}
-          {canSuppliers ? (
-            <a className="attention-card" href="/money#suppliers">
-              <p className="eyebrow">Payments due</p>
-              <h2><MoneyStack values={supplierDue} /></h2>
-              <p className="muted">{overdueSupplierBills} overdue supplier bill{overdueSupplierBills === 1 ? "" : "s"}.</p>
-            </a>
-          ) : null}
-          {canRent ? (
-            <a className="attention-card" href="/money#rent">
-              <p className="eyebrow">Rent due</p>
-              <h2><MoneyStack values={rentDue} /></h2>
-              <p className="muted">{upcomingRentResult.rows.length} rent payment{upcomingRentResult.rows.length === 1 ? "" : "s"} in the next 30 days.</p>
-            </a>
-          ) : null}
-          {canPayroll ? (
-            <a className="attention-card" href="/staff">
-              <p className="eyebrow">Payroll due</p>
-              <h2><MoneyStack values={payrollDue} /></h2>
-              <p className="muted">{upcomingPayrollResult.rows.length} payroll run{upcomingPayrollResult.rows.length === 1 ? "" : "s"} in the next 30 days.</p>
-            </a>
-          ) : null}
-          {canAlerts ? (
-            <a className="attention-card" href="/notifications">
-              <p className="eyebrow">Alerts</p>
-              <h2>{alertCount}</h2>
-              <p className="muted">Open or snoozed operational alerts.</p>
-            </a>
-          ) : null}
-        </section>
-      ) : quickTasks.length ? null : (
-        <section className="panel section-block empty-state">
-          <strong>No items need attention here</strong>
-          <span>Use the available sections in the main menu for your permitted work.</span>
-        </section>
-      )}
-
-      <section className="dashboard-kpis">
-        {canStudents ? (
-          <article className="panel">
-            <p className="eyebrow">Active students</p>
-            <h2 className="metric-value">{activeStudents}</h2>
-            <p className="muted">Current active enrollment.</p>
-          </article>
-        ) : null}
-        {canFees ? (
-          <article className="panel">
-            <p className="eyebrow">Fees expected this month</p>
-            <h2 className="metric-value"><MoneyStack values={expectedFees} /></h2>
-            <p className="muted">Issued, non-void invoices due this month.</p>
-          </article>
-        ) : null}
-        {canFees ? (
-          <article className="panel">
-            <p className="eyebrow">Collected this month</p>
-            <h2 className="metric-value"><MoneyStack values={collectedFees} /></h2>
-            <p className="muted">Payments allocated to tuition this month.</p>
-          </article>
-        ) : null}
-        {canAlerts ? (
-          <article className="panel">
-            <p className="eyebrow">Open alerts</p>
-            <h2 className="metric-value">{alertCount}</h2>
-            <p className="muted">Notifications currently needing review.</p>
-          </article>
-        ) : null}
-      </section>
-
-      {canCash ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Cash position</p>
-              <h2>Cash & bank</h2>
-            </div>
-            <a className="button-link secondary-link" href="/money#cash-bank">Open cash & bank</a>
+      {hasMoneyOverview ? (
+        <section className="home-section" aria-labelledby="money-overview-title">
+          <div className="home-section-heading">
+            <h2 id="money-overview-title">Money overview</h2>
           </div>
-          <div className="cash-bank-grid">
-            <div className="cash-bank-total">
-              <span>Cash</span>
-              <strong><MoneyStack values={cash} /></strong>
-            </div>
-            <div className="cash-bank-total">
-              <span>Bank</span>
-              <strong><MoneyStack values={bank} /></strong>
-            </div>
-          </div>
-          {cashBank.length ? (
-            <div className="table-wrap compact-dashboard-table">
-              <table>
-                <thead><tr><th>Account</th><th>Type</th><th>Currency</th><th>Balance</th></tr></thead>
-                <tbody>
-                  {cashBank.map((row) => (
-                    <tr key={row.account_id}>
-                      <td>{row.display_name}</td>
-                      <td>{row.account_kind}</td>
-                      <td>{row.currency}</td>
-                      <td>{money(Number(row.balance ?? 0), String(row.currency ?? "USD"))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : <p className="muted">No active cash or bank accounts.</p>}
-        </section>
-      ) : null}
-
-      {(canRent || canPayroll) ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Next 30 days</p>
-              <h2>Upcoming payroll & rent</h2>
-            </div>
-          </div>
-          <div className="upcoming-grid">
+          <div className="home-stat-grid">
+            {canCash ? (
+              <OverviewCard href="/money#cash-bank" label="Cash"><MoneyStack values={cash} /></OverviewCard>
+            ) : null}
+            {canCash ? (
+              <OverviewCard href="/money#cash-bank" label="Bank"><MoneyStack values={bank} /></OverviewCard>
+            ) : null}
+            {canSuppliers ? (
+              <OverviewCard href="/money#suppliers" label="Supplier bills due"><MoneyStack values={supplierDue} /></OverviewCard>
+            ) : null}
             {canRent ? (
-              <div>
-                <h3>Rent</h3>
-                {upcomingRentResult.rows.length ? (
-                  <div className="card-list">
-                    {upcomingRentResult.rows.map((row, index) => (
-                      <a className="dashboard-list-item" href="/money#rent" key={row.agreement_number + ":" + index}>
-                        <span><strong>{row.property_name}</strong><small>{row.agreement_number} · due {String(row.due_on).slice(0, 10)}</small></span>
-                        <strong>{money(Number(row.amount_due), String(row.currency))}</strong>
-                      </a>
-                    ))}
-                  </div>
-                ) : <p className="muted">No unpaid rent schedules due in the next 30 days.</p>}
-              </div>
+              <OverviewCard href="/money#rent" label="Rent due"><MoneyStack values={rentDue} /></OverviewCard>
             ) : null}
             {canPayroll ? (
-              <div>
-                <h3>Payroll</h3>
-                {upcomingPayrollResult.rows.length ? (
-                  <div className="card-list">
-                    {upcomingPayrollResult.rows.map((row) => (
-                      <a className="dashboard-list-item" href="/staff" key={row.run_number}>
-                        <span><strong>{row.run_number}</strong><small>Pay date {String(row.pay_date).slice(0, 10)} · {row.status}</small></span>
-                        <strong>{money(Number(row.net_pay), String(row.currency))}</strong>
-                      </a>
-                    ))}
-                  </div>
-                ) : <p className="muted">No payroll runs scheduled in the next 30 days.</p>}
-              </div>
+              <OverviewCard href="/staff" label="Payroll due"><MoneyStack values={payrollDue} /></OverviewCard>
             ) : null}
           </div>
         </section>
       ) : null}
 
-      {canAlerts ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Alerts</p>
-              <h2>Needs review</h2>
-            </div>
-            <a className="button-link secondary-link" href="/notifications">Open notification center</a>
-          </div>
-          {alertsResult.rows.length ? (
-            <div className="card-list">
-              {alertsResult.rows.map((alert) => (
-                <a className="dashboard-list-item" href="/notifications" key={alert.id}>
-                  <span>
-                    <strong>{alert.title}</strong>
-                    <small>{alert.message}</small>
-                  </span>
-                  <span className="badge">{alert.severity}</span>
-                </a>
-              ))}
-            </div>
-          ) : <p className="muted">No open alerts. Nothing needs review here right now.</p>}
+      {!hasSchoolOverview && !hasMoneyOverview ? (
+        <section className="panel empty-state">
+          <strong>Home</strong>
+          <span>Use the menu to open the areas available to your account.</span>
         </section>
       ) : null}
     </main>
