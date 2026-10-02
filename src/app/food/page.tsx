@@ -21,7 +21,7 @@ export default async function FoodPage(){
       (select count(*)::int from food_bill where status in ('issued','partially_paid')) open_bills,
       (select coalesce(sum(balance_amount),0)::numeric(14,2) from food_bill_balance where status in ('issued','partially_paid')) outstanding`)
       :Promise.resolve({rows:[{}] as Row[]}),
-    inventoryAccess?query<Row>("select * from low_stock_alert order by quantity_on_hand-reorder_level,name limit 6"):Promise.resolve({rows:[] as Row[]}),
+    inventoryAccess?query<Row>("select * from low_stock_alert order by quantity_on_hand-reorder_level,name"):Promise.resolve({rows:[] as Row[]}),
     inventoryAccess?query<Row>("select * from food_program_month_summary where month_start=date_trunc('month',current_date)::date order by currency"):Promise.resolve({rows:[] as Row[]}),
   ]);
   const kpi=kpiR.rows[0]??{},low=lowR.rows,month=monthR.rows;
@@ -45,6 +45,6 @@ export default async function FoodPage(){
     </section>
 
     {month.length?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">This month</p><h2>Food program snapshot</h2></div></div><div className="record-grid">{month.map((m)=><div key={m.currency}><small>{m.currency}</small><strong>{money(m.purchased_amount,m.currency)} purchased</strong><span className="muted">{money(m.food_income,m.currency)} income · {money(m.recognized_food_cost,m.currency)} cost</span></div>)}</div></section>:null}
-    {low.length?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Needs attention</p><h2>Low stock now</h2></div><Link className="button-link secondary-link" href="/food/alerts">View all</Link></div><div className="money-list">{low.map((x)=><article className="money-list-row" key={x.ingredient_id}><div><strong>{x.code} · {x.name}</strong><small>{x.quantity_on_hand} {x.unit_code} on hand · reorder at {x.reorder_level}</small></div><span className="badge badge-warning">Low stock</span></article>)}</div></section>:null}
+    {low.length?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Needs attention</p><h2>Low stock now</h2></div><Link className="button-link secondary-link" href="/food/alerts">View all</Link></div><div className="money-list">{low.slice(0,6).map((x)=><article className="money-list-row" key={x.ingredient_id}><div><strong>{x.code} · {x.name}</strong><small>{x.quantity_on_hand} {x.unit_code} on hand · reorder at {x.reorder_level}</small></div><span className="badge badge-warning">Low stock</span></article>)}</div></section>:null}
   </main>;
 }
