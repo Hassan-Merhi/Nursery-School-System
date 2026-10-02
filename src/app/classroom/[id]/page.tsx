@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound,redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
+import { deriveUiProfile } from "@/lib/ui-profile";
 
 type Row=Record<string,any>;
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -9,6 +10,7 @@ function iso(v:unknown){return String(v??"").slice(0,10);}
 
 export default async function ClassroomStudentPage({params}:{params:Promise<{id:string}>}){
   const auth=await requireUser(),can=(p:string)=>auth.permissions.includes(p);
+  const profile=deriveUiProfile(auth.permissions,auth.roles);
   if(!can("students.view"))redirect("/forbidden");
   const {id}=await params;if(!UUID_RE.test(id))notFound();
   const student=(await query<Row>(
@@ -25,6 +27,7 @@ export default async function ClassroomStudentPage({params}:{params:Promise<{id:
     [id],
   )).rows[0];
   if(!student)notFound();
+  if(profile.kind==="teacher"&&String(student.lead_teacher??"").trim().toLowerCase()!==auth.fullName.trim().toLowerCase())redirect("/classroom");
 
   const [foodR,historyR,contactsR]=await Promise.all([
     can("food.view")?query<Row>(
