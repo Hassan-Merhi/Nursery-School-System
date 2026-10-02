@@ -36,7 +36,7 @@ export function AppNavigation({ permissions }: Props) {
     { href: "/dashboard", label: "Home", show: can("dashboard.view") },
     { href: "/students", label: "Students", show: any(groups.students) },
     { href: "/money", label: "Money", show: any(groups.money) },
-    { href: "/payroll", label: "Staff", show: any(groups.staff) },
+    { href: "/staff", label: "Staff", show: any(groups.staff) },
     { href: canFood ? "/food" : "/inventory", label: "Food", show: canFood || canInventory },
     { href: canReports ? "/reports" : "/analytics", label: "Reports", show: canReports || canAnalytics },
     { href: "/settings", label: "Settings", show: true },
