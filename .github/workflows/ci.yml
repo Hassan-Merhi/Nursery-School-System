@@ -58,5 +58,6 @@ jobs:
       - run: npm run verify:notifications
       - run: npm run verify:analytics
       - run: npm run verify:release2
+      - run: npm run verify:usability
       - run: npm run typecheck
       - run: npm run build
