@@ -1160,3 +1160,144 @@ export async function reverseCreditNoteAction(formData: FormData) {
 
   success("Credit note reversed and affected invoice balances recalculated.");
 }
+
+
+export async function recordFamilyPaymentAction(formData: FormData) {
+  const auth = await requirePermission("payments.manage");
+  const familyId = requireUuid(value(formData, "family_id"), "family");
+  const amount = money(value(formData, "amount"), "payment amount");
+  const paymentAccountId = requireUuid(value(formData, "payment_account_id"), "payment account");
+  const receivedOn = requireDate(value(formData, "received_on"), "payment date");
+  const method = value(formData, "method") || "cash";
+  const reference = value(formData, "reference");
+  const notes = value(formData, "notes");
+  const chequeNumber = value(formData, "cheque_number");
+  const chequeDueOnRaw = value(formData, "cheque_due_on");
+  const chequeDueOn = chequeDueOnRaw ? requireDate(chequeDueOnRaw, "cheque due date") : null;
+
+  if (!["cash", "card", "bank_transfer", "check", "other"].includes(method)) {
+    redirect(`/students/families/${familyId}?error=${encodeURIComponent("Select a valid payment method.")}#billing`);
+  }
+  if (method === "check" && !chequeNumber) {
+    redirect(`/students/families/${familyId}?error=${encodeURIComponent("Cheque number is required for cheque payments.")}#billing`);
+  }
+
+  let paymentId = "";
+  let receiptNumber = "";
+  let currency = "USD";
+  let allocatedTotal = 0;
+
+  await withTransaction(async (client) => {
+    const family = await client.query("select id from family where id=$1 for update", [familyId]);
+    if (!family.rowCount) {
+      redirect(`/students?error=${encodeURIComponent("Family not found.")}`);
+    }
+
+    const account = await client.query<{ currency: string; account_kind: string; display_name: string }>(
+      `select a.currency,c.account_kind,c.display_name
+       from cash_bank_account c
+       join account a on a.id=c.account_id
+       where c.account_id=$1 and c.is_active=true and a.status='active' and a.allow_posting=true`,
+      [paymentAccountId],
+    );
+    const paymentAccount = account.rows[0];
+    if (!paymentAccount) {
+      redirect(`/students/families/${familyId}?error=${encodeURIComponent("Choose an active cash or bank account.")}#billing`);
+    }
+    currency = paymentAccount.currency;
+
+    await requireAccountingReady(client, ["customer_deposits"], receivedOn);
+
+    receiptNumber = await nextDocumentNumber(client, "receipt", auth.userId);
+    const inserted = await client.query<{ id: string }>(
+      `insert into payment(
+         receipt_number,family_id,student_id,payment_kind,amount,currency,
+         received_on,method,payment_account_id,cheque_number,cheque_due_on,reference,notes,created_by
+       ) values ($1,$2,null,'payment',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       returning id`,
+      [
+        receiptNumber,
+        familyId,
+        amount,
+        currency,
+        receivedOn,
+        method,
+        paymentAccountId,
+        chequeNumber || null,
+        chequeDueOn,
+        reference || null,
+        notes || null,
+        auth.userId,
+      ],
+    );
+    paymentId = inserted.rows[0].id;
+
+    await client.query("select accounting_post_payment($1,$2)", [paymentId, auth.userId]);
+
+    const openInvoices = await client.query<{
+      id: string;
+      invoice_number: string;
+      balance_amount: string;
+    }>(
+      `select i.id,i.invoice_number,b.balance_amount
+       from invoice i
+       join invoice_balance b on b.id=i.id
+       where i.family_id=$1
+         and i.currency=$2
+         and i.status in ('issued','partially_paid')
+         and b.balance_amount>0
+       order by i.due_on asc nulls last,i.issued_on asc nulls last,i.created_at asc
+       for update of i`,
+      [familyId, currency],
+    );
+
+    let remainingCents = toCents(amount);
+    const allocationAudit: Array<{ invoiceId: string; invoiceNumber: string; amount: string }> = [];
+
+    for (const invoice of openInvoices.rows) {
+      if (remainingCents <= 0) break;
+      const allocationCents = Math.min(remainingCents, toCents(invoice.balance_amount));
+      if (allocationCents <= 0) continue;
+      const allocationAmount = fromCents(allocationCents);
+      const allocation = await client.query<{ id: string }>(
+        `insert into payment_allocation(payment_id,invoice_id,amount,allocated_on,created_by)
+         values ($1,$2,$3,$4,$5)
+         returning id`,
+        [paymentId, invoice.id, allocationAmount, receivedOn, auth.userId],
+      );
+      await client.query("select accounting_post_payment_allocation($1,$2)", [
+        allocation.rows[0].id,
+        auth.userId,
+      ]);
+      remainingCents -= allocationCents;
+      allocatedTotal += Number(allocationAmount);
+      allocationAudit.push({
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        amount: allocationAmount,
+      });
+    }
+
+    await writeAudit(client, {
+      actorUserId: auth.userId,
+      action: "family_payment_recorded",
+      entityType: "payment",
+      entityId: paymentId,
+      after: {
+        receiptNumber,
+        familyId,
+        amount,
+        currency,
+        paymentAccountId,
+        method,
+        automaticallyAllocated: allocationAudit,
+        unallocatedAmount: fromCents(remainingCents),
+      },
+    });
+  });
+
+  revalidatePath("/billing");
+  revalidatePath("/operations");
+  revalidatePath(`/students/families/${familyId}`);
+  redirect(`/receipts/${paymentId}?family=${familyId}&allocated=${allocatedTotal.toFixed(2)}`);
+}
