@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { deriveUiProfile } from "@/lib/ui-profile";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -28,6 +32,8 @@ const groups = {
 };
 
 export function AppNavigation({ permissions, roles = [] }: Props) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const can = (permission: string) => permissions.includes(permission);
   const any = (items: string[]) => items.some(can);
   const profile = deriveUiProfile(permissions, roles);
@@ -44,6 +50,10 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
     "users.view","users.manage","roles.view","roles.manage","settings.view","settings.manage",
     "documents.view","documents.manage","audit.view",
   ]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const teacherMode = profile.kind === "teacher";
   const receptionMode = profile.kind === "reception";
@@ -84,21 +94,32 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
 
           <ThemeToggle />
 
-          <details className="mobile-navigation">
-            <summary aria-label="Open main menu">
+          <div className="mobile-navigation">
+            <button
+              className="mobile-menu-button"
+              type="button"
+              aria-label={mobileOpen ? "Close main menu" : "Open main menu"}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-main-navigation"
+              onClick={() => setMobileOpen((open) => !open)}
+            >
               <span className="mobile-menu-lines" aria-hidden="true">
                 <span />
                 <span />
                 <span />
               </span>
-              <span className="sr-only">Menu</span>
-            </summary>
-            <div className="mobile-navigation-panel">
-              {items.map((item) => (
-                <Link key={item.href} href={item.href}>{item.label}</Link>
-              ))}
-            </div>
-          </details>
+            </button>
+
+            {mobileOpen ? (
+              <div className="mobile-navigation-panel" id="mobile-main-navigation">
+                {items.map((item) => (
+                  <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </nav>
     </div>
