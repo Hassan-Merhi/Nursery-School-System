@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
+import { PrintButton } from "@/components/print-button";
 
 function money(amount:unknown,currency:string){
   const n=Number(amount??0);
@@ -50,7 +51,7 @@ export default async function ReceiptPage({params}:{params:Promise<{id:string}>}
      order by allocated_on,created_at`,[id])).rows;
 
   return <main className="app-shell">
-    <header className="topbar no-print"><div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payment receipt</h1></div><div className="top-actions"><Link className="button-link secondary-link" href="/billing">Billing</Link><Link className="button-link secondary-link" href="/food">Food</Link></div></header>
+    <header className="topbar no-print"><div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payment receipt</h1></div><div className="top-actions"><PrintButton/><Link className="button-link secondary-link" href={"/students/families/"+payment.family_id+"#billing"}>Back to family</Link><Link className="button-link secondary-link" href="/billing">Find another payment</Link></div></header>
     <section className="panel receipt-sheet">
       <div className="row-between"><div><p className="eyebrow">Official receipt</p><h1>{payment.receipt_number}</h1></div><div><strong>{money(payment.amount,payment.currency)}</strong><div className="muted">{String(payment.received_on).slice(0,10)}</div></div></div>
       <hr/>
@@ -72,7 +73,7 @@ export default async function ReceiptPage({params}:{params:Promise<{id:string}>}
       </tbody></table></div>
       <div className="record-grid"><div><small>Allocated</small><strong>{money(payment.allocated_amount,payment.currency)}</strong></div><div><small>Available credit</small><strong>{money(payment.unallocated_amount,payment.currency)}</strong></div><div><small>Total received</small><strong>{money(payment.amount,payment.currency)}</strong></div></div>
       {payment.status==="reversed"?<div className="notice error">REVERSED · {payment.reversal_reason||"Payment reversed"}</div>:null}
-      <p className="muted">This receipt is generated from the immutable payment record. Use your browser print command to print or save it as PDF.</p>
+      <p className="muted no-print">This receipt is generated from the immutable payment record. Use “Print receipt” above to print it or save it as PDF.</p>
     </section>
   </main>;
 }
