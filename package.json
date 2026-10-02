@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node scripts/seed-admin-env.mjs && next start",
+    "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed-admin": "node scripts/seed-admin.mjs",
