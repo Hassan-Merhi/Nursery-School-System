@@ -79,5 +79,12 @@ try{
   }finally{client.release();}
 }finally{
   if(pool)await pool.end();
-  try{await admin.query('drop database if exists "'+scratchName+'" with (force)');}finally{await admin.end();}
+  try{
+    for(let attempt=0;attempt<20;attempt++){
+      const active=(await admin.query("select count(*)::int n from pg_stat_activity where datname=$1",[scratchName])).rows[0].n;
+      if(active===0)break;
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    await admin.query('drop database if exists "'+scratchName+'"');
+  }finally{await admin.end();}
 }
