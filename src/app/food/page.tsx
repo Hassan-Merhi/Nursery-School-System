@@ -56,9 +56,11 @@ export default async function FoodPage({searchParams}:{searchParams:Promise<{err
   const openBills=bills.filter((x:any)=>["issued","partially_paid"].includes(x.status));
 
   return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Release 2 · Step 10</p><h1>Food packages & student food billing</h1><p className="muted">Food selections use the existing family ledger, receipt engine, Accounts Receivable and General Ledger.</p></div>
-      <div className="top-actions"><Link className="button-link secondary-link" href="/dashboard">Dashboard</Link><Link className="button-link secondary-link" href="/billing">Billing</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link><Link className="button-link secondary-link" href="/inventory">Inventory</Link></div>
+    <header className="page-header">
+      <div>
+        <h1>Food</h1>
+        <p className="muted">Meal items, packages, what each child is signed up for, and food bills.</p>
+      </div>
     </header>
     {error?<div className="notice error">{error}</div>:null}
     {success?<div className="notice success">{success}</div>:null}
@@ -118,7 +120,5 @@ export default async function FoodPage({searchParams}:{searchParams:Promise<{err
       </div>:null}
       <div className="table-wrap"><table><thead><tr><th>Receipt</th><th>Food bill</th><th>Student</th><th>Date</th><th>Applied</th><th>Status</th></tr></thead><tbody>{foodPayments.map((p:any)=><tr key={p.id}><td><Link href={"/receipts/"+p.payment_id}>{p.receipt_number}</Link></td><td>{p.bill_number}</td><td>{p.student_number} · {p.student_name}</td><td>{dateText(p.allocated_on)}</td><td>{money(p.amount,p.currency)}</td><td><span className="badge">{p.payment_status}</span></td></tr>)}{!foodPayments.length?<tr><td colSpan={6}>No food payment receipts yet.</td></tr>:null}</tbody></table></div>
     </section>:null}
-
-    <section className="panel section-block"><p className="eyebrow">Integrity</p><h2>Release 1 controls stay authoritative</h2><p className="muted">Package prices are snapshotted when selected. Issued food bills cannot be edited. Parent payments and credits cannot be allocated twice across tuition and food. Food bills feed the same receivables control account and student/family ledgers.</p></section>
   </main>;
 }

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
@@ -77,9 +76,11 @@ export default async function InventoryPage({searchParams}:{searchParams:Promise
   const draftReceipts=receipts.filter((x:any)=>x.status==="draft");
 
   return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Food Inventory & Purchasing</h1><p className="muted">Simple stock control without restaurant-style recipe costing.</p></div>
-      <div className="top-actions"><Link className="button-link secondary-link" href="/dashboard">Dashboard</Link><Link className="button-link secondary-link" href="/food">Food billing</Link><Link className="button-link secondary-link" href="/operations">Suppliers</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link></div>
+    <header className="page-header">
+      <div>
+        <h1>Kitchen stock</h1>
+        <p className="muted">What the kitchen has, what to reorder, and what was bought.</p>
+      </div>
     </header>
 
     {error?<div className="notice error">{error}</div>:null}
@@ -134,7 +135,5 @@ export default async function InventoryPage({searchParams}:{searchParams:Promise
     </section>:null}
 
     {can("inventory.view")?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Audit-friendly stock history</p><h2>Recent inventory movements</h2></div><span className="badge">Last {movements.length}</span></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>Ingredient</th><th>Movement</th><th>Quantity</th><th>Unit cost</th><th>Value change</th><th>Reference</th></tr></thead><tbody>{movements.map((m:any)=><tr key={m.id}><td>{dateText(m.occurred_on)}</td><td>{m.ingredient_code} · {m.ingredient_name}</td><td>{String(m.movement_kind).replaceAll("_"," ")}</td><td>{number(m.quantity_delta)} {m.unit_code}</td><td>{money(m.unit_cost,inventoryCurrency)}</td><td>{money(m.value_delta,inventoryCurrency)}</td><td>{m.reference||m.source_type}</td></tr>)}{!movements.length?<tr><td colSpan={7}>No inventory movements yet.</td></tr>:null}</tbody></table></div></section>:null}
-
-    <section className="panel section-block"><p className="eyebrow">Scope</p><h2>Deliberately simple costing</h2><p className="muted">Step 11 tracks what Montikids buys, what remains in stock, and manual usage/waste at moving-average cost. It does not pretend to know grams consumed per child or recipe-level theoretical usage. That can be added later without replacing this inventory ledger.</p></section>
   </main>;
 }

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
@@ -218,18 +217,10 @@ export default async function AccountingPage({
 
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <header className="page-header">
         <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Accounting Core</h1>
-          <p className="muted">
-            Double-entry accounting with a custom chart of accounts, period controls, posting, reversals, and reconciled reporting.
-          </p>
-        </div>
-        <div className="top-actions">
-          <Link className="button-link secondary-link" href="/billing">Fees & billing</Link>
-          <Link className="button-link secondary-link" href="/operations">Operations</Link>
-          <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
+          <h1>Accounting</h1>
+          <p className="muted">The school's books: accounts, journal entries and periods. Most entries are created for you automatically.</p>
         </div>
       </header>
 
@@ -818,17 +809,6 @@ export default async function AccountingPage({
           ) : null}
         </>
       ) : null}
-
-      <section className="panel section-block">
-        <p className="eyebrow">Milestone 4</p>
-        <h2>Tiny-company reconciliation</h2>
-        <p className="muted">
-          CI creates custom accounts, posts a 10,000.00 opening bank balance, receives 1,000.00,
-          spends 200.00, and transfers 500.00 between bank accounts. Expected ending assets are
-          10,800.00, current surplus is 800.00, net position is 10,800.00, and the trial balance
-          must reconcile exactly.
-        </p>
-      </section>
     </main>
   );
 }

@@ -84,22 +84,16 @@ export default async function NotificationsPage({
 
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <header className="page-header">
         <div>
-          <p className="eyebrow">Step 12</p>
-          <h1>Notifications & Automation</h1>
-          <p className="muted">
-            Alerts are recalculated from billing, supplier, rental, payroll, academic, inventory and employee records.
-          </p>
+          <h1>Alerts</h1>
+          <p className="muted">Things that need your attention: overdue bills, expiring documents, low stock and more.</p>
         </div>
-        <div className="top-actions">
-          <a className="button-link" href="/dashboard">Dashboard</a>
-          {canRun?(
-            <form action={runNotificationRefreshAction}>
-              <button type="submit">Refresh now</button>
-            </form>
-          ):null}
-        </div>
+        {canRun?(
+          <form action={runNotificationRefreshAction} className="no-print">
+            <button type="submit">Check for new alerts</button>
+          </form>
+        ):null}
       </header>
 
       {error?<div className="notice error">{error}</div>:null}

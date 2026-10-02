@@ -107,16 +107,10 @@ export default async function RentalsPage({searchParams}:{searchParams:Promise<{
   const setupComplete=Boolean(config.rentals_journal_id)&&roles.length===4&&roles.every((x)=>x.account_id);
 
   return <main className="app-shell">
-    <header className="topbar">
+    <header className="page-header">
       <div>
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
         <h1>Rentals</h1>
-        <p className="muted">Rental agreements, landlords, schedules, prepaid rent, payables, deposits, payments, attachments and accounting recognition.</p>
-      </div>
-      <div className="top-actions">
-        <a className="button-link secondary-link" href="/dashboard">Dashboard</a>
-        {auth.permissions.some((p)=>p.startsWith("accounting."))?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}
-        {auth.permissions.some((p)=>["expenses.view","banking.view","suppliers.view"].includes(p))?<a className="button-link secondary-link" href="/operations">Operations</a>:null}
+        <p className="muted">Rent agreements, landlords, and rent payments.</p>
       </div>
     </header>
 

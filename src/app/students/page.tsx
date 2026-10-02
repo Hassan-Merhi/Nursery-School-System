@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
@@ -295,15 +294,11 @@ export default async function StudentsPage({
 
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <header className="page-header">
         <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Families, Students & Enrollment</h1>
-          <p className="muted">
-            Family records are the source of truth for sibling relationships and future sibling discounts.
-          </p>
+          <h1>Students & families</h1>
+          <p className="muted">Add families and children, put them in classes, and keep their documents in one place.</p>
         </div>
-        <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
       </header>
 
       {error ? <div className="notice error">{error}</div> : null}
@@ -520,12 +515,6 @@ export default async function StudentsPage({
           <div className="table-wrap"><table><thead><tr><th>Date</th><th>Student</th><th>Event</th><th>Summary</th><th>Recorded by</th></tr></thead><tbody>{history.map((item) => <tr key={item.id}><td>{item.event_date}</td><td>{item.student_number} · {item.student_name}</td><td><code>{item.event_type}</code></td><td>{item.summary}</td><td>{item.actor_name ?? "System / unknown"}</td></tr>)}</tbody></table></div>
         </section>
       ) : null}
-
-      <section className="panel section-block">
-        <p className="eyebrow">Milestone 2 workflow</p>
-        <h2>Family → Parent → Child 1 + Child 2 → 2026–2027 Term 1</h2>
-        <p className="muted">Create the 2026–2027 school year in the Foundation dashboard if it does not exist, create a class here, then enroll both children with the September–December term selected. Their sibling relationship appears automatically because both children share the same family.</p>
-      </section>
     </main>
   );
 }

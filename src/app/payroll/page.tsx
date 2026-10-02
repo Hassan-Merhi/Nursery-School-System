@@ -53,9 +53,11 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   const setupComplete=Boolean(config.payroll_journal_id)&&roles.length===3&&roles.every((x)=>x.account_id);
 
   return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Employees & Payroll</h1><p className="muted">Employees, immutable salary history, advances, payroll approvals, locking, payslips, payments and accounting.</p></div>
-      <div className="top-actions"><a className="button-link secondary-link" href="/dashboard">Dashboard</a>{auth.permissions.some((p)=>p.startsWith("accounting."))?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}{auth.permissions.some((p)=>p.startsWith("rentals."))?<a className="button-link secondary-link" href="/rentals">Rentals</a>:null}</div>
+    <header className="page-header">
+      <div>
+        <h1>Staff & payroll</h1>
+        <p className="muted">Employees, salaries, advances and monthly payroll with payslips.</p>
+      </div>
     </header>
     {error?<div className="notice error">{error}</div>:null}{success?<div className="notice success">{success}</div>:null}
 

@@ -246,16 +246,10 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
   const exportHref=(kind:string)=>"/reports/export?"+new URLSearchParams({kind,from,to}).toString();
 
   return <main className="app-shell report-shell">
-    <header className="topbar">
+    <header className="page-header">
       <div>
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-        <h1>Net Position, Management & Reports</h1>
-        <p className="muted">Read-only management reporting from posted accounting, billing, enrollment, rentals and payroll records.</p>
-      </div>
-      <div className="top-actions no-print">
-        <a className="button-link secondary-link" href="/dashboard">Administration</a>
-        {can("accounting.view")?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}
-        {can("analytics.view")?<a className="button-link secondary-link" href="/analytics">Advanced analytics</a>:null}
+        <h1>Reports</h1>
+        <p className="muted">Ready-made reports you can view, print or export. Nothing here changes your data.</p>
       </div>
     </header>
 
@@ -357,7 +351,7 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
     </>:null}
 
     {section==="payroll"&&can("reports.view")&&can("payroll.view")?<>
-      {!payrollInstalled?<section className="panel section-block"><div className="notice">Payroll is not installed in this database yet. Step 8 will show payroll reports automatically after the Step 7 migrations are applied.</div></section>:<>
+      {!payrollInstalled?<section className="panel section-block"><div className="notice">Payroll isn't set up yet. Payroll reports will appear here once it is.</div></section>:<>
         <section className="panel section-block">
           <div className="section-heading"><div><p className="eyebrow">Salary history</p><h2>Immutable salary agreements</h2></div>{can("reports.export")?<a className="button-link no-print" href={exportHref("salary-history")}>Export CSV</a>:null}</div>
           <div className="table-wrap"><table><thead><tr><th>Employee</th><th>Job title</th><th>Effective from</th><th>Effective to</th><th>Monthly salary</th><th>Notes</th></tr></thead><tbody>{salaryHistory.map((x)=><tr key={x.id}><td>{x.employee_number} · {x.employee_name}</td><td>{x.job_title||"—"}</td><td>{date(x.effective_from)}</td><td>{date(x.effective_to)||"Current"}</td><td>{money(x.monthly_salary,x.currency)}</td><td>{x.notes||"—"}</td></tr>)}</tbody></table></div>
@@ -398,7 +392,7 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
       </section>
       <section className="panel section-block">
         <div className="section-heading"><div><p className="eyebrow">Payslips</p><h2>Payroll documents</h2></div></div>
-        {!payrollInstalled?<p className="muted">Payslips become available when Step 7 payroll is installed.</p>:!can("payroll.view")?<p className="muted">Payroll permission is required to view payslips.</p>:<div className="table-wrap"><table><thead><tr><th>Period</th><th>Employee</th><th>Run</th><th>Net pay</th><th /></tr></thead><tbody>{payslips.map((x)=><tr key={x.id}><td>{date(x.period_start)} → {date(x.period_end)}</td><td>{x.employee_number} · {x.employee_name}</td><td>{x.run_number}</td><td>{money(x.net_pay,x.currency)}</td><td><a href={"/reports/documents/payslip/"+x.id}>Open</a></td></tr>)}</tbody></table></div>}
+        {!payrollInstalled?<p className="muted">Payslips will appear here once payroll is set up.</p>:!can("payroll.view")?<p className="muted">You don't have access to payslips. Ask an administrator if you need it.</p>:<div className="table-wrap"><table><thead><tr><th>Period</th><th>Employee</th><th>Run</th><th>Net pay</th><th /></tr></thead><tbody>{payslips.map((x)=><tr key={x.id}><td>{date(x.period_start)} → {date(x.period_end)}</td><td>{x.employee_number} · {x.employee_name}</td><td>{x.run_number}</td><td>{money(x.net_pay,x.currency)}</td><td><a href={"/reports/documents/payslip/"+x.id}>Open</a></td></tr>)}</tbody></table></div>}
       </section>
     </>:null}
   </main>;

@@ -55,8 +55,6 @@ export default async function BillingPage({
   const auth = await requireUser();
   const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
-  const canAccounting = ["accounting.view","accounting.manage","accounting.post","accounting.period_lock","accounting.mapping"].some(can);
-  const canOperations = ["expenses.view","expenses.manage","expenses.approve","expenses.post","suppliers.view","suppliers.manage","banking.view","banking.manage","banking.reconcile","recurring_expenses.view","recurring_expenses.manage","refunds.manage"].some(can);
   const allowed = [
     "billing.view",
     "billing.manage",
@@ -351,19 +349,10 @@ export default async function BillingPage({
 
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <header className="page-header">
         <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Fees, Discounts & Billing</h1>
-          <p className="muted">
-            Term fees, approved discounts, invoices, credits and payments use auditable snapshots.
-          </p>
-        </div>
-        <div className="top-actions">
-          <Link className="button-link secondary-link" href="/students">Families & students</Link>
-          {canAccounting ? <Link className="button-link secondary-link" href="/accounting">Accounting</Link> : null}
-          {canOperations ? <Link className="button-link secondary-link" href="/operations">Operations</Link> : null}
-          <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
+          <h1>Fees & payments</h1>
+          <p className="muted">Set term fees and discounts, send invoices, and record what parents pay.</p>
         </div>
       </header>
 
@@ -1026,16 +1015,6 @@ export default async function BillingPage({
           </div>
         </section>
       ) : null}
-
-      <section className="panel section-block">
-        <p className="eyebrow">Milestone 3</p>
-        <h2>Three-child manual balance test</h2>
-        <p className="muted">
-          With a 1,000.00 term fee: Child A normal = 1,000.00; Child B sibling 10% = 900.00;
-          Child C custom fixed 150.00 = 850.00. CI verifies these exact balances plus combined-discount modes,
-          partial payments, prepayments, overpayments, credit notes and reversals.
-        </p>
-      </section>
     </main>
   );
 }

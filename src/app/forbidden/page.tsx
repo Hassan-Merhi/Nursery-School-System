@@ -5,11 +5,11 @@ export default function ForbiddenPage() {
     <main className="center-card">
       <section className="panel">
         <p className="eyebrow">Access denied</p>
-        <h1>You do not have permission to open that area.</h1>
+        <h1>You don't have access to this page</h1>
         <p className="muted">
-          Ask an administrator to update your role if you need access.
+          If you need it for your work, ask an administrator to give your account access.
         </p>
-        <Link className="button-link" href="/dashboard">Back to dashboard</Link>
+        <Link className="button-link" href="/dashboard">Go to Home</Link>
       </section>
     </main>
   );

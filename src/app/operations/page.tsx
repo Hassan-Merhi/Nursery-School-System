@@ -101,9 +101,11 @@ export default async function OperationsPage({searchParams}:{searchParams:Promis
     ?(await query<Row>("select ri.reconciliation_id,gl.journal_line_id,gl.account_id,gl.entry_number,gl.posting_date,gl.entry_description,gl.debit,gl.credit,gl.currency from bank_reconciliation_item ri join general_ledger gl on gl.journal_line_id=ri.journal_line_id order by gl.posting_date,gl.entry_number")).rows:[];
 
   return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payments, Expenses, Suppliers & Cash/Bank</h1><p className="muted">Every posted operation flows into the double-entry accounting core.</p></div>
-      <div className="top-actions"><a className="button-link secondary-link" href="/dashboard">Dashboard</a><a className="button-link secondary-link" href="/billing">Student billing</a><a className="button-link secondary-link" href="/accounting">Accounting</a></div>
+    <header className="page-header">
+      <div>
+        <h1>Expenses & bank</h1>
+        <p className="muted">Record spending, pay suppliers, and keep cash and bank balances correct.</p>
+      </div>
     </header>
     {error?<div className="notice error">{error}</div>:null}{success?<div className="notice success">{success}</div>:null}
 
@@ -116,7 +118,7 @@ export default async function OperationsPage({searchParams}:{searchParams:Promis
     {can("accounting.mapping")?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Accounting connection</p><h2>Operations journal</h2></div></div><form action={configureOperationsJournalAction} className="inline-form"><label>Journal<select name="journal_id" defaultValue={config.operations_journal_id??""} required><option value="" disabled>Select journal</option>{journals.map((j)=><option key={j.id} value={j.id}>{j.code} · {j.name}</option>)}</select></label><button type="submit">Save journal</button></form></section>:null}
 
     {can("banking.view")||can("banking.manage")?<section className="panel section-block">
-      <div className="section-heading"><div><p className="eyebrow">Bank & cash</p><h2>Cash and bank accounts</h2><p className="muted">These are your normal Step 4 asset accounts, classified for operational use.</p></div></div>
+      <div className="section-heading"><div><p className="eyebrow">Bank & cash</p><h2>Cash and bank accounts</h2><p className="muted">The cash boxes and bank accounts the school pays from and receives into.</p></div></div>
       {can("banking.manage")?<form action={createCashBankAccountAction} className="form-grid create-box">
         <label>Accounting asset account<select name="account_id" defaultValue="" required><option value="" disabled>Select asset account</option>{assetAccounts.filter((a)=>!cashBank.some((c)=>c.account_id===a.id)).map((a)=><option key={a.id} value={a.id}>{a.code} · {a.name} · {a.currency}</option>)}</select></label>
         <label>Type<select name="account_kind" defaultValue="bank"><option value="bank">Bank</option><option value="cash">Cash</option></select></label>
@@ -133,7 +135,7 @@ export default async function OperationsPage({searchParams}:{searchParams:Promis
     </section>:null}
 
     {can("expenses.view")||can("expenses.manage")||can("expenses.approve")||can("expenses.post")?<section className="panel section-block">
-      <div className="section-heading"><div><p className="eyebrow">Expenses</p><h2>Expense entry, receipts & approvals</h2><p className="muted">Choose any custom Step 4 expense account and the actual cash/bank account that paid it.</p></div></div>
+      <div className="section-heading"><div><p className="eyebrow">Expenses</p><h2>Add an expense</h2><p className="muted">Record what was bought, what kind of expense it was, and which cash box or bank account paid for it.</p></div></div>
       {can("expenses.manage")?<form action={createExpenseAction} className="form-grid create-box">
         <label>Supplier (optional)<select name="supplier_id" defaultValue=""><option value="">No supplier</option>{suppliers.filter((s)=>s.status==="active").map((s)=><option key={s.id} value={s.id}>{s.supplier_number} · {s.name}</option>)}</select></label>
         <label>Expense account<select name="expense_account_id" defaultValue="" required><option value="" disabled>Select expense account</option>{expenseAccounts.map((x)=><option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>

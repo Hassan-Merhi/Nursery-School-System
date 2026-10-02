@@ -14,16 +14,16 @@ export default async function LoginPage({
     <main className="login-shell">
       <section className="login-card">
         <div className="brand-mark">M</div>
-        <p className="eyebrow">Montikids</p>
-        <h1>School management</h1>
+        <p className="eyebrow">Montikids school system</p>
+        <h1>Welcome back</h1>
         <p className="muted">
-          Sign in with an account created by an administrator.
+          Sign in with the email and password your administrator gave you.
         </p>
         {error ? <div className="notice error">{error}</div> : null}
         <form action={loginAction} className="stack">
           <label>
             Email
-            <input type="email" name="email" autoComplete="username" required />
+            <input type="email" name="email" autoComplete="username" placeholder="you@example.com" required autoFocus />
           </label>
           <label>
             Password

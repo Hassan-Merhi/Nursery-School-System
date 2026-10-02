@@ -31,15 +31,10 @@ export default async function AnalyticsPage({searchParams}:{searchParams:Promise
   const priorRange=data.yearOverYear[0];
 
   return <main className="app-shell analytics-shell">
-    <header className="topbar">
+    <header className="page-header">
       <div>
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-        <h1>Advanced Dashboard & Analysis</h1>
-        <p className="muted">Read-only management analytics from posted accounting and historical operational records.</p>
-      </div>
-      <div className="top-actions no-print">
-        <a className="button-link secondary-link" href="/reports">Management & reports</a>
-        <a className="button-link secondary-link" href="/dashboard">Administration</a>
+        <h1>Trends</h1>
+        <p className="muted">Charts that compare terms, months and years. Nothing here changes your data.</p>
       </div>
     </header>
 
@@ -118,7 +113,7 @@ export default async function AnalyticsPage({searchParams}:{searchParams:Promise
     </section>
 
     <section className="panel section-block" id="food-profitability">
-      <div className="section-heading"><div><p className="eyebrow">6 · Food profitability</p><h2>Food revenue, purchasing and recognized cost</h2><p className="muted">Cost is sourced from Step 11 inventory/accounting. Purchases stay inventory until usage, waste, spoilage or correction recognizes cost.</p></div></div>
+      <div className="section-heading"><div><p className="eyebrow">6 · Food profitability</p><h2>Food revenue, purchasing and recognized cost</h2><p className="muted">Food cost comes from kitchen stock. Purchases only count as cost once the food is used or thrown away.</p></div></div>
       {!data.food.length?<EmptyState/>:null}
       {currencies.map((currency)=>{
         const rows=rowsForCurrency(data.food,currency);
