@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
@@ -132,6 +133,60 @@ type HistoryRow = {
   occurred_at: Date;
   actor_name: string | null;
 };
+
+
+type StudentModuleIconName = "families" | "students" | "classes" | "enrollment" | "documents" | "history";
+
+function StudentModuleIcon({ name }: { name: StudentModuleIconName }) {
+  const paths: Record<StudentModuleIconName, ReactNode> = {
+    families: (
+      <>
+        <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+        <path d="M3 19a5.5 5.5 0 0 1 11 0" />
+        <path d="M13 15.5a4.5 4.5 0 0 1 8 3.5" />
+      </>
+    ),
+    students: (
+      <>
+        <path d="m3 8.5 9-4 9 4-9 4-9-4Z" />
+        <path d="M7 11v4.2c0 1.7 2.2 3.1 5 3.1s5-1.4 5-3.1V11" />
+        <path d="M21 9v5" />
+      </>
+    ),
+    classes: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <path d="M8 9h8M8 13h5M8 17h7" />
+      </>
+    ),
+    enrollment: (
+      <>
+        <path d="M7 3h10a2 2 0 0 1 2 2v14H5V5a2 2 0 0 1 2-2Z" />
+        <path d="M9 8h6M9 12h3" />
+        <path d="m13.5 16 1.5 1.5 3-3" />
+      </>
+    ),
+    documents: (
+      <>
+        <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+        <path d="M14 3v5h5M9 13h6M9 17h5" />
+      </>
+    ),
+    history: (
+      <>
+        <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5" />
+        <path d="M4 4v4.5h4.5M12 8v4l2.5 1.5" />
+      </>
+    ),
+  };
+
+  return (
+    <span className="students-module-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" role="presentation">{paths[name]}</svg>
+    </span>
+  );
+}
 
 const STEP2_PERMISSIONS = [
   "families.view",
@@ -314,8 +369,8 @@ export default async function StudentsPage({
       <header className="students-workspace-header">
         <div>
           <p className="eyebrow">Students</p>
-          <h1>Families & enrollment</h1>
-          <p className="muted">Everything about children, families, classes and enrollment in one place.</p>
+          <h1>Students</h1>
+          <p className="muted">Families, enrollment, classes and student records.</p>
         </div>
         {can("families.manage") && can("students.manage") && can("enrollments.manage") ? (
           <Link className="button-link students-primary-action" href="/students/admissions">Enroll a child</Link>
@@ -358,13 +413,13 @@ export default async function StudentsPage({
           <details className="students-module" id="families">
             <summary>
               <span className="students-module-title">
-                <span className="students-module-icon">F</span>
+                <StudentModuleIcon name="families" />
                 <span>
                   <strong>Families</strong>
                   <small>Parents, guardians and emergency contacts</small>
                 </span>
               </span>
-              <span className="students-module-count">{families.length}</span>
+              <span className="students-module-side"><span className="students-module-count">{families.length}</span><span className="students-module-chevron" aria-hidden="true">⌄</span></span>
             </summary>
             <div className="students-module-body">
               {can("families.manage") ? (
@@ -445,13 +500,13 @@ export default async function StudentsPage({
           <details className="students-module" id="students">
             <summary>
               <span className="students-module-title">
-                <span className="students-module-icon">S</span>
+                <StudentModuleIcon name="students" />
                 <span>
                   <strong>Students</strong>
                   <small>Student records and sibling relationships</small>
                 </span>
               </span>
-              <span className="students-module-count">{students.length}</span>
+              <span className="students-module-side"><span className="students-module-count">{students.length}</span><span className="students-module-chevron" aria-hidden="true">⌄</span></span>
             </summary>
             <div className="students-module-body">
               {can("students.manage") ? (
@@ -506,13 +561,13 @@ export default async function StudentsPage({
           <details className="students-module" id="classes">
             <summary>
               <span className="students-module-title">
-                <span className="students-module-icon">C</span>
+                <StudentModuleIcon name="classes" />
                 <span>
                   <strong>Classes</strong>
                   <small>School-year classrooms and capacity</small>
                 </span>
               </span>
-              <span className="students-module-count">{classes.length}</span>
+              <span className="students-module-side"><span className="students-module-count">{classes.length}</span><span className="students-module-chevron" aria-hidden="true">⌄</span></span>
             </summary>
             <div className="students-module-body">
               {can("classes.manage") ? (
@@ -545,13 +600,13 @@ export default async function StudentsPage({
           <details className="students-module" id="enrollment">
             <summary>
               <span className="students-module-title">
-                <span className="students-module-icon">E</span>
+                <StudentModuleIcon name="enrollment" />
                 <span>
                   <strong>Enrollment</strong>
                   <small>School-year and term enrollment</small>
                 </span>
               </span>
-              <span className="students-module-count">{openEnrollments}</span>
+              <span className="students-module-side"><span className="students-module-count">{openEnrollments}</span><span className="students-module-chevron" aria-hidden="true">⌄</span></span>
             </summary>
             <div className="students-module-body">
               {can("enrollments.manage") ? (
@@ -603,13 +658,13 @@ export default async function StudentsPage({
           <details className="students-module" id="documents">
             <summary>
               <span className="students-module-title">
-                <span className="students-module-icon">D</span>
+                <StudentModuleIcon name="documents" />
                 <span>
                   <strong>Documents</strong>
                   <small>Birth certificates, IDs, consent forms and more</small>
                 </span>
               </span>
-              <span className="students-module-count">{documents.length}</span>
+              <span className="students-module-side"><span className="students-module-count">{documents.length}</span><span className="students-module-chevron" aria-hidden="true">⌄</span></span>
             </summary>
             <div className="students-module-body">
               {can("student_documents.manage") ? (
@@ -637,13 +692,13 @@ export default async function StudentsPage({
           <details className="students-module" id="history">
             <summary>
               <span className="students-module-title">
-                <span className="students-module-icon">H</span>
+                <StudentModuleIcon name="history" />
                 <span>
                   <strong>History</strong>
                   <small>Permanent student activity log</small>
                 </span>
               </span>
-              <span className="students-module-count">{history.length}</span>
+              <span className="students-module-side"><span className="students-module-count">{history.length}</span><span className="students-module-chevron" aria-hidden="true">⌄</span></span>
             </summary>
             <div className="students-module-body">
               {history.length ? (
@@ -655,6 +710,15 @@ export default async function StudentsPage({
           </details>
         ) : null}
       </div>
+
+      {can("families.manage") && can("students.manage") && can("enrollments.manage") ? (
+        <div className="students-mobile-dock no-print">
+          <Link className="button-link" href="/students/admissions">
+            <span aria-hidden="true">＋</span>
+            Enroll a child
+          </Link>
+        </div>
+      ) : null}
     </main>
   );
 }
