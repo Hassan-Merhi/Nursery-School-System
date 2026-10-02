@@ -1278,6 +1278,50 @@ export async function recordFamilyPaymentAction(formData: FormData) {
       });
     }
 
+    const foodAllocationAudit: Array<{ foodBillId: string; billNumber: string; amount: string }> = [];
+    if (remainingCents > 0 && auth.permissions.includes("food.payments")) {
+      const openFoodBills = await client.query<{
+        id: string;
+        bill_number: string;
+        balance_amount: string;
+      }>(
+        `select b.id,b.bill_number,v.balance_amount
+         from food_bill b
+         join food_bill_balance v on v.id=b.id
+         where b.family_id=$1
+           and b.currency=$2
+           and b.status in ('issued','partially_paid')
+           and v.balance_amount>0
+         order by b.due_on asc nulls last,b.issued_on asc nulls last,b.created_at asc
+         for update of b`,
+        [familyId, currency],
+      );
+
+      for (const bill of openFoodBills.rows) {
+        if (remainingCents <= 0) break;
+        const allocationCents = Math.min(remainingCents, toCents(bill.balance_amount));
+        if (allocationCents <= 0) continue;
+        const allocationAmount = fromCents(allocationCents);
+        const allocation = await client.query<{ id: string }>(
+          `insert into food_payment_allocation(payment_id,food_bill_id,amount,allocated_on,created_by)
+           values ($1,$2,$3,$4,$5)
+           returning id`,
+          [paymentId, bill.id, allocationAmount, receivedOn, auth.userId],
+        );
+        await client.query("select accounting_post_food_payment_allocation($1,$2)", [
+          allocation.rows[0].id,
+          auth.userId,
+        ]);
+        remainingCents -= allocationCents;
+        allocatedTotal += Number(allocationAmount);
+        foodAllocationAudit.push({
+          foodBillId: bill.id,
+          billNumber: bill.bill_number,
+          amount: allocationAmount,
+        });
+      }
+    }
+
     await writeAudit(client, {
       actorUserId: auth.userId,
       action: "family_payment_recorded",
@@ -1291,6 +1335,7 @@ export async function recordFamilyPaymentAction(formData: FormData) {
         paymentAccountId,
         method,
         automaticallyAllocated: allocationAudit,
+        automaticallyAllocatedFood: foodAllocationAudit,
         unallocatedAmount: fromCents(remainingCents),
       },
     });
