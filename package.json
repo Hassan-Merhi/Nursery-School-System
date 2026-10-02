@@ -28,6 +28,7 @@
     "verify:analytics": "node scripts/verify-analytics.mjs",
     "notifications:run": "node scripts/run-notifications.mjs",
     "verify:release2": "node scripts/verify-release2.mjs",
+    "verify:usability": "node scripts/verify-usability.mjs",
     "release2:gate": "node scripts/release2-gate.mjs"
   },
   "dependencies": {
