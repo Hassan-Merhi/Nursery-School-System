@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
 import { createEnrollmentAction, withdrawEnrollmentAction } from "../../actions";
 import { recordFamilyPaymentAction } from "@/app/billing/actions";
+import { createFoodSelectionAction, closeFoodSelectionAction } from "@/app/food/actions";
 
 type Row = Record<string, any>;
 type MoneyValue = [string, number];
@@ -247,6 +248,13 @@ export default async function FamilyHubPage({
   const documents = documentsResult.rows;
   const history = historyResult.rows;
   const cashBank = cashBankResult.rows;
+  const foodPackages = can("food.manage") ? (await query<Row>(
+    `select p.id,p.code,p.name,p.package_kind,p.package_price,p.currency,
+       p.available_from::text,p.available_to::text,t.name term_name,y.name year_name
+     from food_package p join school_term t on t.id=p.term_id join school_year y on y.id=p.school_year_id
+     where p.status='active' and t.status<>'closed' and y.status<>'closed'
+     order by y.starts_on desc,t.sequence,p.name`
+  )).rows : [];
 
   const tuitionOpen = invoices.filter((row) => ["issued","partially_paid"].includes(row.status) && Number(row.balance_amount) > 0);
   const foodOpen = foodBills.filter((row) => ["issued","partially_paid"].includes(row.status) && Number(row.balance_amount) > 0);
@@ -451,8 +459,23 @@ export default async function FamilyHubPage({
 
       {canFood ? <section className="panel section-block" id="food">
         <div className="section-heading"><div><p className="eyebrow">Food</p><h2>Food packages & billing</h2><p className="muted">Food activity is visible beside the student account, not hidden in a separate workflow.</p></div>{can("food.manage") ? <Link className="button-link secondary-link" href="/food">Manage food packages</Link> : null}</div>
+        {can("food.manage") && foodPackages.length ? <div className="student-document-forms">
+          {students.filter((student) => student.status !== "graduated").map((student) => (
+            <form action={createFoodSelectionAction} className="form-grid create-box" key={student.id}>
+              <input type="hidden" name="student_id" value={student.id}/>
+              <input type="hidden" name="return_to" value={returnTo}/>
+              <div className="span-2"><strong>Add food package for {student.first_name} {student.last_name}</strong></div>
+              <label className="span-2">Package<select name="food_package_id" defaultValue="" required><option value="" disabled>Select active package</option>{foodPackages.map((pack) => <option key={pack.id} value={pack.id}>{pack.year_name} · {pack.term_name} · {pack.code} · {pack.name} · {money(pack.package_price,pack.currency)}</option>)}</select></label>
+              <label>Quantity<input name="quantity" defaultValue="1" inputMode="decimal" required/></label>
+              <label>Starts on<input name="starts_on" type="date" defaultValue={today} required/></label>
+              <label>Ends on<input name="ends_on" type="date" required/></label>
+              <label>Notes<input name="notes"/></label>
+              <button type="submit">Add food selection</button>
+            </form>
+          ))}
+        </div> : null}
         <div className="card-list">
-          {foodSelections.map((selection) => <article className="subcard" key={selection.id}><div className="row-between"><div><strong>{selection.student_number} · {selection.student_name}</strong><div className="muted">{selection.package_code} · {selection.package_name} · {selection.package_kind}</div></div><span className="badge">{selection.status}</span></div><p className="muted">{iso(selection.starts_on)} → {iso(selection.ends_on)} · {money(selection.unit_price,selection.currency)} × {selection.quantity}</p></article>)}
+          {foodSelections.map((selection) => <article className="subcard" key={selection.id}><div className="row-between"><div><strong>{selection.student_number} · {selection.student_name}</strong><div className="muted">{selection.package_code} · {selection.package_name} · {selection.package_kind}</div></div><span className="badge">{selection.status}</span></div><p className="muted">{iso(selection.starts_on)} → {iso(selection.ends_on)} · {money(selection.unit_price,selection.currency)} × {selection.quantity}</p>{can("food.manage") && selection.status==="active" ? <form action={closeFoodSelectionAction} className="inline-form compact-form"><input type="hidden" name="student_food_selection_id" value={selection.id}/><input type="hidden" name="return_to" value={returnTo}/><button className="secondary" name="status" value="ended">End selection</button><button className="secondary" name="status" value="cancelled">Cancel selection</button></form> : null}</article>)}
           {!foodSelections.length ? <p className="muted">No food selections for this family.</p> : null}
         </div>
         <div className="table-wrap"><table><thead><tr><th>Bill</th><th>Student</th><th>Package</th><th>Period</th><th>Total</th><th>Paid / credit</th><th>Balance</th><th>Status</th></tr></thead><tbody>{foodBills.map((bill) => <tr key={bill.id}><td>{bill.bill_number}</td><td>{bill.student_number} · {bill.student_name}</td><td>{bill.package_code} · {bill.package_name}</td><td>{iso(bill.period_start)} → {iso(bill.period_end)}</td><td>{money(bill.total_amount,bill.currency)}</td><td>{money(bill.paid_amount,bill.currency)} / {money(bill.credit_amount,bill.currency)}</td><td><strong>{money(bill.balance_amount,bill.currency)}</strong></td><td><span className="badge">{bill.status}</span></td></tr>)}{!foodBills.length ? <tr><td colSpan={8}>No food bills.</td></tr> : null}</tbody></table></div>
