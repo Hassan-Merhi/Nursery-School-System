@@ -250,6 +250,17 @@ export default async function StudentsPage({
       )).rows
     : [];
 
+  const teacherUsers: { id: string; full_name: string; email: string }[] = can("classes.manage")
+    ? (await query<{ id: string; full_name: string; email: string }>(
+        `select distinct u.id,u.full_name,u.email
+         from app_user u
+         join user_role ur on ur.user_id=u.id
+         join role r on r.id=ur.role_id
+         where u.status='active' and lower(r.name)='teacher'
+         order by u.full_name,u.email`,
+      )).rows
+    : [];
+
   const enrollments: EnrollmentRow[] = can("enrollments.view") || can("enrollments.manage")
     ? (await query<EnrollmentRow>(
         `select e.id,e.student_id,s.student_number,
@@ -464,7 +475,7 @@ export default async function StudentsPage({
               <label>School year<select name="school_year_id" required defaultValue=""><option value="" disabled>Select year</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name} · {year.status}</option>)}</select></label>
               <label>Class name<input name="name" placeholder="Casa 1" required /></label>
               <label>Room<input name="room" /></label>
-              <label>Lead teacher<input name="lead_teacher" /></label>
+              <label>Lead teacher<input name="lead_teacher" list="teacher-user-names" placeholder="Select or enter teacher name" /><datalist id="teacher-user-names">{teacherUsers.map((teacher) => <option key={teacher.id} value={teacher.full_name}>{teacher.email}</option>)}</datalist></label>
               <label>Capacity<input name="capacity" type="number" min="1" max="500" /></label>
               <label>Status<select name="status" defaultValue="active"><option value="planned">Planned</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
               <button type="submit">Create class</button>
