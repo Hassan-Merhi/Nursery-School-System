@@ -21,8 +21,9 @@ function fail(message: string): never {
 
 function success(message: string): never {
   revalidatePath("/billing");
+  revalidatePath("/billing/admin");
   revalidatePath("/operations");
-  redirect(`/billing?success=${encodeURIComponent(message)}`);
+  redirect(`/billing/admin?success=${encodeURIComponent(message)}`);
 }
 
 function requireUuid(raw: string, label: string) {
@@ -1164,22 +1165,45 @@ export async function reverseCreditNoteAction(formData: FormData) {
 
 export async function recordFamilyPaymentAction(formData: FormData) {
   const auth = await requirePermission("payments.manage");
-  const familyId = requireUuid(value(formData, "family_id"), "family");
-  const amount = money(value(formData, "amount"), "payment amount");
-  const paymentAccountId = requireUuid(value(formData, "payment_account_id"), "payment account");
-  const receivedOn = requireDate(value(formData, "received_on"), "payment date");
+  const familyIdRaw = value(formData, "family_id");
+  if (!UUID_RE.test(familyIdRaw)) redirect("/billing?error="+encodeURIComponent("Invalid family."));
+  const familyId = familyIdRaw;
+  const familyError = (message: string): never =>
+    redirect(`/students/families/${familyId}?error=${encodeURIComponent(message)}#billing`);
+
+  const amountRaw = value(formData, "amount");
+  if (!MONEY_RE.test(amountRaw)) familyError("Enter a valid payment amount with at most two decimal places.");
+  const amountNumber = Number(amountRaw);
+  if (!Number.isFinite(amountNumber) || amountNumber <= 0 || amountNumber > 99_999_999.99) {
+    familyError("Payment amount must be greater than zero.");
+  }
+  const amount = amountNumber.toFixed(2);
+
+  const paymentAccountId = value(formData, "payment_account_id");
+  if (!UUID_RE.test(paymentAccountId)) familyError("Choose a valid cash or bank account.");
+
+  const receivedOn = value(formData, "received_on");
+  if (!DATE_RE.test(receivedOn) || Number.isNaN(Date.parse(`${receivedOn}T00:00:00Z`))) {
+    familyError("Enter a valid payment date.");
+  }
   const method = value(formData, "method") || "cash";
   const reference = value(formData, "reference");
   const notes = value(formData, "notes");
   const chequeNumber = value(formData, "cheque_number");
   const chequeDueOnRaw = value(formData, "cheque_due_on");
-  const chequeDueOn = chequeDueOnRaw ? requireDate(chequeDueOnRaw, "cheque due date") : null;
+  let chequeDueOn: string | null = null;
+  if (chequeDueOnRaw) {
+    if (!DATE_RE.test(chequeDueOnRaw) || Number.isNaN(Date.parse(`${chequeDueOnRaw}T00:00:00Z`))) {
+      familyError("Enter a valid cheque due date.");
+    }
+    chequeDueOn = chequeDueOnRaw;
+  }
 
   if (!["cash", "card", "bank_transfer", "check", "other"].includes(method)) {
-    redirect(`/students/families/${familyId}?error=${encodeURIComponent("Select a valid payment method.")}#billing`);
+    familyError("Select a valid payment method.");
   }
   if (method === "check" && !chequeNumber) {
-    redirect(`/students/families/${familyId}?error=${encodeURIComponent("Cheque number is required for cheque payments.")}#billing`);
+    familyError("Cheque number is required for cheque payments.");
   }
 
   let paymentId = "";
