@@ -193,10 +193,11 @@ export default async function DashboardPage({
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Settings & Administration</h1>
+          <p className="eyebrow">{canAdministration ? "Montikids Montessori Preschool & Nursery" : "Account"}</p>
+          <h1>{canAdministration ? "Settings & Administration" : "My account"}</h1>
           <p className="muted">
             Signed in as {auth.fullName} · {auth.roles.join(", ") || "No role"}
+            {!canAdministration ? " · Manage your password and session here." : ""}
           </p>
         </div>
         <div className="top-actions">
@@ -209,7 +210,7 @@ export default async function DashboardPage({
       {error ? <div className="notice error">{error}</div> : null}
       {success ? <div className="notice success">{success}</div> : null}
 
-      <section className="status-grid">
+      {canAdministration ? <section className="status-grid">
         <article className="panel">
           <p className="eyebrow">Security</p>
           <h2>{auth.permissions.length} permissions active</h2>
@@ -225,7 +226,7 @@ export default async function DashboardPage({
           <h2>Append-only events</h2>
           <p className="muted">Security and administration changes are recorded.</p>
         </article>
-      </section>
+      </section> : null}
 
       {profile ? (
         <section className="panel section-block">
