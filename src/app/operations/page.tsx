@@ -102,8 +102,8 @@ export default async function OperationsPage({searchParams}:{searchParams:Promis
 
   return <main className="app-shell">
     <header className="topbar">
-      <div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payments, Expenses, Suppliers & Cash/Bank</h1><p className="muted">Every posted operation flows into the double-entry accounting core.</p></div>
-      <div className="top-actions"><a className="button-link secondary-link" href="/dashboard">Dashboard</a><a className="button-link secondary-link" href="/billing">Student billing</a><a className="button-link secondary-link" href="/accounting">Accounting</a></div>
+      <div><p className="eyebrow">Advanced Money operations</p><h1>Financial controls & maintenance</h1><p className="muted">Approvals, reversals, account setup, recurring expenses and reconciliation. Everyday work starts in Money.</p></div>
+      <div className="top-actions"><a className="button-link secondary-link" href="/money">Back to Money</a><a className="button-link secondary-link" href="/billing">Student billing</a><a className="button-link secondary-link" href="/accounting">Accounting</a></div>
     </header>
     {error?<div className="notice error">{error}</div>:null}{success?<div className="notice success">{success}</div>:null}
 
