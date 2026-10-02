@@ -14,11 +14,14 @@ const RENTAL_ROLES=new Set(["rent_expense","prepaid_rent","rent_payable","rent_d
 
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
 function bad(m:string):never{redirect("/rentals?error="+encodeURIComponent(m));}
-function good(m:string):never{
+function good(m:string,d?:FormData):never{
   revalidatePath("/rentals");
+  revalidatePath("/money");
   revalidatePath("/accounting");
   revalidatePath("/operations");
   revalidatePath("/dashboard");
+  const returnTo=d?String(d.get("return_to")??"").trim():"";
+  if(returnTo==="/money")redirect("/money?success="+encodeURIComponent(m)+"#rent");
   redirect("/rentals?success="+encodeURIComponent(m));
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
@@ -234,7 +237,7 @@ export async function createRentPaymentAction(d:FormData){
     await c.query("select accounting_post_rent_payment($1,$2)",[paymentId,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:paymentType==="deposit"?"rent_deposit_paid":"rent_payment_posted",entityType:"rent_payment",entityId:paymentId,after:{rentPaymentNumber:number,agreementId:agreement,paymentType,amount,currency,paidOn,paymentAccountId:account}});
   });
-  good(paymentType==="deposit"?"Rent deposit posted.":"Rent payment posted and allocated to the rent schedule.");
+  good(paymentType==="deposit"?"Rent deposit posted.":"Rent payment posted and allocated to the rent schedule.",d);
 }
 
 export async function reverseRentPaymentAction(d:FormData){
