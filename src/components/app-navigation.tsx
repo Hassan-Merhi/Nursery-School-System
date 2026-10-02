@@ -19,31 +19,33 @@ const groups = {
   staff: [
     "employees.view","employees.manage","payroll.view","payroll.manage","payroll.approve","payroll.lock","payroll.pay","salary_advances.manage",
   ],
-  food: [
-    "food.view","food.manage","food.billing","food.payments",
-    "inventory.view","inventory.manage","inventory.purchase","inventory.post","inventory.adjust",
-  ],
-  reports: ["management.view","reports.view","reports.export","report_documents.view","analytics.view"],
+  food: ["food.view","food.manage","food.billing","food.payments"],
+  inventory: ["inventory.view","inventory.manage","inventory.purchase","inventory.post","inventory.adjust"],
+  reports: ["management.view","reports.view","reports.export","report_documents.view"],
 };
 
 export function AppNavigation({ permissions }: Props) {
   const can = (permission: string) => permissions.includes(permission);
   const any = (items: string[]) => items.some(can);
+  const canFood = any(groups.food);
+  const canInventory = any(groups.inventory);
+  const canReports = any(groups.reports);
+  const canAnalytics = can("analytics.view");
 
   const items = [
-    { href: "/dashboard", label: "Home", show: true },
+    { href: "/dashboard", label: "Home", show: can("dashboard.view") },
     { href: "/students", label: "Students", show: any(groups.students) },
     { href: "/money", label: "Money", show: any(groups.money) },
     { href: "/payroll", label: "Staff", show: any(groups.staff) },
-    { href: "/food", label: "Food", show: any(groups.food) },
-    { href: "/reports", label: "Reports", show: any(groups.reports) },
+    { href: canFood ? "/food" : "/inventory", label: "Food", show: canFood || canInventory },
+    { href: canReports ? "/reports" : "/analytics", label: "Reports", show: canReports || canAnalytics },
     { href: "/settings", label: "Settings", show: true },
   ].filter((item) => item.show);
 
   return (
     <div className="app-navigation-shell no-print">
       <nav className="app-navigation" aria-label="Main navigation">
-        <Link className="app-brand" href="/dashboard" aria-label="Montikids home">
+        <Link className="app-brand" href={can("dashboard.view") ? "/dashboard" : "/settings"} aria-label="Montikids home">
           <span className="app-brand-mark">M</span>
           <span>Montikids</span>
         </Link>
