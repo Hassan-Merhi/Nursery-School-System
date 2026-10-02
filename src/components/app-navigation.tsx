@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { deriveUiProfile } from "@/lib/ui-profile";
 
 type Props = {
   permissions: string[];
+  roles?: string[];
 };
 
 const groups = {
@@ -24,31 +26,47 @@ const groups = {
   reports: ["management.view","reports.view","reports.export","report_documents.view"],
 };
 
-export function AppNavigation({ permissions }: Props) {
+export function AppNavigation({ permissions, roles = [] }: Props) {
   const can = (permission: string) => permissions.includes(permission);
   const any = (items: string[]) => items.some(can);
+  const profile = deriveUiProfile(permissions, roles);
   const canFood = any(groups.food);
   const canInventory = any(groups.inventory);
   const canReports = any(groups.reports);
   const canAnalytics = can("analytics.view");
+  const canSettings = any([
+    "school_profile.view","school_profile.manage","school_years.view","school_years.manage",
+    "users.view","users.manage","roles.view","roles.manage","settings.view","settings.manage",
+    "documents.view","documents.manage","audit.view",
+  ]);
+
+  const teacherMode = profile.kind === "teacher";
+  const receptionMode = profile.kind === "reception";
 
   const items = [
     { href: "/dashboard", label: "Home", show: can("dashboard.view") },
-    { href: "/students", label: "Students", show: any(groups.students) },
-    { href: "/money", label: "Money", show: any(groups.money) },
-    { href: "/staff", label: "Staff", show: any(groups.staff) },
+    { href: profile.studentHref, label: profile.studentLabel, show: any(groups.students) },
+    {
+      href: receptionMode ? "/billing" : profile.moneyHref,
+      label: receptionMode ? "Payments" : profile.moneyLabel,
+      show: !teacherMode && any(groups.money),
+    },
+    { href: "/staff", label: "Staff", show: !teacherMode && any(groups.staff) },
     { href: "/food", label: "Food", show: canFood || canInventory },
-    { href: canReports ? "/reports" : "/analytics", label: "Reports", show: canReports || canAnalytics },
-    { href: "/settings", label: "Settings", show: true },
+    { href: canReports ? "/reports" : "/analytics", label: "Reports", show: !teacherMode && (canReports || canAnalytics) },
+    { href: "/settings", label: canSettings ? "Settings" : "Account", show: true },
   ].filter((item) => item.show);
 
   return (
     <div className="app-navigation-shell no-print">
       <nav className="app-navigation" aria-label="Main navigation">
-        <Link className="app-brand" href={can("dashboard.view") ? "/dashboard" : "/settings"} aria-label="Montikids home">
-          <span className="app-brand-mark">M</span>
-          <span>Montikids</span>
-        </Link>
+        <div className="app-brand-group">
+          <Link className="app-brand" href={can("dashboard.view") ? "/dashboard" : items[0]?.href ?? "/settings"} aria-label="Montikids home">
+            <span className="app-brand-mark">M</span>
+            <span>Montikids</span>
+          </Link>
+          <span className="app-role-pill">{profile.label}</span>
+        </div>
         <div className="app-navigation-links">
           {items.map((item) => (
             <Link key={item.href} href={item.href}>{item.label}</Link>
