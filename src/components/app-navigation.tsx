@@ -34,6 +34,10 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
   const canInventory = any(groups.inventory);
   const canReports = any(groups.reports);
   const canAnalytics = can("analytics.view");
+  const canStaffOperations = any([
+    "employees.view","employees.manage","payroll.manage","payroll.approve",
+    "payroll.lock","payroll.pay","salary_advances.manage",
+  ]);
   const canSettings = any([
     "school_profile.view","school_profile.manage","school_years.view","school_years.manage",
     "users.view","users.manage","roles.view","roles.manage","settings.view","settings.manage",
@@ -51,7 +55,7 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
       label: receptionMode ? "Payments" : profile.moneyLabel,
       show: !teacherMode && any(groups.money),
     },
-    { href: "/staff", label: "Staff", show: !teacherMode && any(groups.staff) },
+    { href: "/staff", label: "Staff", show: !teacherMode && canStaffOperations },
     { href: "/food", label: "Food", show: !teacherMode && !receptionMode && (canFood || canInventory) },
     { href: canReports ? "/reports" : "/analytics", label: "Reports", show: !teacherMode && (canReports || canAnalytics) },
     { href: "/settings", label: canSettings ? "Settings" : "Account", show: true },
