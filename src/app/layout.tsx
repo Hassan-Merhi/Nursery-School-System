@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { AppNavigation } from "@/components/app-navigation";
+import { getAuthContext } from "@/lib/security";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,10 +8,15 @@ export const metadata: Metadata = {
   description: "Management system for Montikids Montessori Preschool & Nursery",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const auth = await getAuthContext();
+
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {auth ? <AppNavigation permissions={auth.permissions} /> : null}
+        {children}
+      </body>
     </html>
   );
 }
