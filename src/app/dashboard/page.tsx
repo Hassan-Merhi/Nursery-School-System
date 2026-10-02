@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { requirePermission } from "@/lib/security";
+import { deriveUiProfile } from "@/lib/ui-profile";
 
 type Row = Record<string, any>;
 type MoneyValue = [string, number];
@@ -41,6 +42,7 @@ export default async function DashboardPage() {
   const auth = await requirePermission("dashboard.view");
   const can = (permission: string) => auth.permissions.includes(permission);
   const any = (permissions: string[]) => permissions.some(can);
+  const profile = deriveUiProfile(auth.permissions, auth.roles);
 
   const canStudents = any([
     "students.view","students.manage","families.view","families.manage",
@@ -212,17 +214,89 @@ export default async function DashboardPage() {
   const alertCount = Number(alertCountResult.rows[0]?.count ?? 0);
   const attentionVisible = canFees || canSuppliers || canRent || canPayroll || canAlerts;
 
+  const quickTasks = [
+    {
+      href: "/students/admissions",
+      eyebrow: "Admissions",
+      title: "Enroll a child",
+      description: "Create or find a family, add the child and finish enrollment.",
+      show: can("families.manage") && can("students.manage") && can("enrollments.manage"),
+      profiles: ["administrator","reception"],
+    },
+    {
+      href: "/billing",
+      eyebrow: "Parents",
+      title: "Record tuition / find balance",
+      description: "Find the family, see the balance, take payment and open the receipt.",
+      show: canFees,
+      profiles: ["administrator","reception","accounting"],
+    },
+    {
+      href: "/classroom",
+      eyebrow: "Students",
+      title: "Open classroom",
+      description: "Roster and classroom-safe student information.",
+      show: canStudents,
+      profiles: ["teacher"],
+    },
+    {
+      href: "/money#expenses",
+      eyebrow: "Expenses",
+      title: "Add an expense",
+      description: "Record an everyday expense without opening the accounting ledger.",
+      show: can("expenses.manage"),
+      profiles: ["administrator","accounting"],
+    },
+    {
+      href: "/staff",
+      eyebrow: "Payroll",
+      title: "Run payroll",
+      description: "Start from staff, then continue the current payroll workflow.",
+      show: canPayroll,
+      profiles: ["administrator","payroll"],
+    },
+    {
+      href: "/food/purchases",
+      eyebrow: "Food",
+      title: "Buy food stock",
+      description: "Review or create food purchases and receiving work.",
+      show: any(["inventory.purchase","inventory.view"]),
+      profiles: ["administrator","food","accounting"],
+    },
+    {
+      href: "/accounting",
+      eyebrow: "Accounting",
+      title: "Open accounting controls",
+      description: "Journals, mappings, periods and ledger controls.",
+      show: any(["accounting.view","accounting.manage","accounting.post","accounting.mapping"]),
+      profiles: ["administrator","accounting"],
+    },
+  ].filter((task) => task.show && task.profiles.includes(profile.kind));
+
   return (
     <main className="app-shell dashboard-shell">
       <header className="dashboard-hero">
         <div>
           <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>What needs attention today?</h1>
+          <h1>{profile.homeTitle}</h1>
           <p className="muted">
-            {today} · Signed in as {auth.fullName}. This page shows live operational totals allowed by your role.
+            {today} · Signed in as {auth.fullName}. {profile.homeDescription}
           </p>
         </div>
       </header>
+
+      {quickTasks.length ? (
+        <section className="role-task-grid" aria-label="Common tasks">
+          {quickTasks.map((task) => (
+            <a className="role-task-card" href={task.href} key={task.href}>
+              <p className="eyebrow">{task.eyebrow}</p>
+              <h2>{task.title}</h2>
+              <p className="muted">{task.description}</p>
+              <span>Start →</span>
+            </a>
+          ))}
+        </section>
+      ) : null}
 
       {attentionVisible ? (
         <section className="attention-grid" aria-label="Items needing attention">
@@ -234,21 +308,21 @@ export default async function DashboardPage() {
             </a>
           ) : null}
           {canSuppliers ? (
-            <a className="attention-card" href="/operations">
+            <a className="attention-card" href="/money#suppliers">
               <p className="eyebrow">Payments due</p>
               <h2><MoneyStack values={supplierDue} /></h2>
               <p className="muted">{overdueSupplierBills} overdue supplier bill{overdueSupplierBills === 1 ? "" : "s"}.</p>
             </a>
           ) : null}
           {canRent ? (
-            <a className="attention-card" href="/rentals">
+            <a className="attention-card" href="/money#rent">
               <p className="eyebrow">Rent due</p>
               <h2><MoneyStack values={rentDue} /></h2>
               <p className="muted">{upcomingRentResult.rows.length} rent payment{upcomingRentResult.rows.length === 1 ? "" : "s"} in the next 30 days.</p>
             </a>
           ) : null}
           {canPayroll ? (
-            <a className="attention-card" href="/payroll">
+            <a className="attention-card" href="/staff">
               <p className="eyebrow">Payroll due</p>
               <h2><MoneyStack values={payrollDue} /></h2>
               <p className="muted">{upcomingPayrollResult.rows.length} payroll run{upcomingPayrollResult.rows.length === 1 ? "" : "s"} in the next 30 days.</p>
@@ -307,7 +381,7 @@ export default async function DashboardPage() {
               <p className="eyebrow">Cash position</p>
               <h2>Cash & bank</h2>
             </div>
-            <a className="button-link secondary-link" href="/operations">Open banking</a>
+            <a className="button-link secondary-link" href="/money#cash-bank">Open cash & bank</a>
           </div>
           <div className="cash-bank-grid">
             <div className="cash-bank-total">
@@ -354,7 +428,7 @@ export default async function DashboardPage() {
                 {upcomingRentResult.rows.length ? (
                   <div className="card-list">
                     {upcomingRentResult.rows.map((row, index) => (
-                      <a className="dashboard-list-item" href="/rentals" key={row.agreement_number + ":" + index}>
+                      <a className="dashboard-list-item" href="/money#rent" key={row.agreement_number + ":" + index}>
                         <span><strong>{row.property_name}</strong><small>{row.agreement_number} · due {String(row.due_on).slice(0, 10)}</small></span>
                         <strong>{money(Number(row.amount_due), String(row.currency))}</strong>
                       </a>
@@ -369,7 +443,7 @@ export default async function DashboardPage() {
                 {upcomingPayrollResult.rows.length ? (
                   <div className="card-list">
                     {upcomingPayrollResult.rows.map((row) => (
-                      <a className="dashboard-list-item" href="/payroll" key={row.run_number}>
+                      <a className="dashboard-list-item" href="/staff" key={row.run_number}>
                         <span><strong>{row.run_number}</strong><small>Pay date {String(row.pay_date).slice(0, 10)} · {row.status}</small></span>
                         <strong>{money(Number(row.net_pay), String(row.currency))}</strong>
                       </a>
