@@ -84,7 +84,7 @@ export async function quickCreateReceiptFromOrderAction(d:FormData){
     )).rows[0];
     if(!po||!["ordered","partially_received"].includes(po.status))fail("Only ordered purchases with outstanding stock can be received.");
     const lines=(await c.query<{ingredient_id:string;quantity_outstanding:string;unit_cost:string}>(
-      "select ingredient_id,quantity_outstanding::text,unit_cost::text from food_purchase_order_line_progress where purchase_order_id=$1 and quantity_outstanding>0 order by ingredient_name",
+      "select ingredient_id,quantity_outstanding::text,unit_cost::text from food_purchase_order_line_progress where purchase_order_id=$1 and quantity_outstanding>0 order by ingredient_id",
       [order],
     )).rows;
     if(!lines.length)fail("This purchase order has no outstanding quantities.");
