@@ -689,3 +689,254 @@ th { color: var(--muted); font-size: .76rem; text-transform: uppercase; }
     flex-direction: column;
   }
 }
+
+
+/* Phase 3 — family/student operational hub */
+.family-hub-shell,
+.billing-simple-shell { max-width: 1320px; }
+
+.family-hub-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.family-hub-nav {
+  position: sticky;
+  top: 4.2rem;
+  z-index: 30;
+  display: flex;
+  gap: .4rem;
+  overflow-x: auto;
+  margin: 0 0 1rem;
+  padding: .55rem;
+  border: 1px solid var(--line);
+  border-radius: .85rem;
+  background: color-mix(in srgb, var(--panel) 95%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.family-hub-nav a {
+  white-space: nowrap;
+  border-radius: .6rem;
+  color: var(--ink);
+  font-size: .88rem;
+  font-weight: 700;
+  padding: .45rem .65rem;
+  text-decoration: none;
+}
+
+.family-hub-nav a:hover { background: var(--soft); }
+
+.family-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.family-contact-grid,
+.student-hub-grid,
+.family-financial-summary,
+.student-document-forms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.family-contact-item {
+  display: grid;
+  gap: .12rem;
+  border-bottom: 1px solid var(--line);
+  padding: .65rem 0;
+}
+
+.student-hub-grid { margin-top: 1rem; }
+
+.student-hub-card {
+  border: 1px solid var(--line);
+  border-radius: .9rem;
+  background: #fafbf9;
+  padding: 1rem;
+}
+
+.student-hub-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: .8rem;
+}
+
+.student-hub-stats span,
+.family-financial-summary > div {
+  display: grid;
+  gap: .15rem;
+  border: 1px solid var(--line);
+  border-radius: .7rem;
+  background: var(--panel);
+  padding: .7rem;
+}
+
+.student-hub-stats small,
+.family-financial-summary small {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.hub-details {
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  background: #fafbf9;
+  padding: .8rem 1rem;
+}
+
+.hub-details > summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.hub-action-form { margin-top: 1rem; }
+
+.family-financial-summary {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 1rem;
+}
+
+.simple-payment-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+  margin: 1rem 0 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+  border-radius: 1rem;
+  background: var(--soft);
+  padding: 1rem;
+}
+
+.simple-payment-step {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: .65rem;
+  align-items: start;
+}
+
+.simple-payment-step > span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  margin-top: 1.45rem;
+}
+
+.simple-payment-form > button {
+  justify-self: start;
+}
+
+.history-timeline { display: grid; gap: .7rem; }
+
+.history-event {
+  border-left: 3px solid var(--accent);
+  background: #fafbf9;
+  border-radius: 0 .75rem .75rem 0;
+  padding: .8rem 1rem;
+}
+
+.history-event > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+}
+
+.history-event p { margin: .35rem 0; }
+
+/* Phase 4 — simplified billing finder */
+.billing-family-finder { margin-bottom: 1rem; }
+
+.billing-search-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: .8rem;
+  align-items: end;
+}
+
+.billing-family-results {
+  display: grid;
+  gap: .8rem;
+}
+
+.family-payment-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--panel);
+  box-shadow: 0 10px 32px rgba(32, 52, 45, .05);
+  padding: 1rem;
+}
+
+.family-payment-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+  gap: 1rem;
+}
+
+.family-payment-card h2 { margin-bottom: .2rem; }
+
+.family-payment-balance {
+  display: grid;
+  align-content: center;
+  gap: .2rem;
+  border-left: 1px solid var(--line);
+  padding-left: 1rem;
+}
+
+.family-payment-balance > small {
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.family-payment-balance > strong {
+  font-size: 1.25rem;
+}
+
+.family-payment-balance > span {
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.family-payment-open {
+  align-self: center;
+  min-width: 13rem;
+}
+
+@media (max-width: 820px) {
+  .family-hub-header { flex-direction: column; }
+  .family-hub-nav { top: 7.2rem; }
+  .family-contact-grid,
+  .student-hub-grid,
+  .student-document-forms,
+  .simple-payment-form,
+  .billing-search-form,
+  .family-payment-card,
+  .family-payment-card-main {
+    grid-template-columns: 1fr;
+  }
+  .family-payment-balance {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: .8rem 0 0;
+  }
+  .family-payment-open { width: 100%; }
+  .student-hub-stats { grid-template-columns: 1fr; }
+}
