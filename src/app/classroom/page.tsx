@@ -36,7 +36,7 @@ export default async function ClassroomPage({
   const assigned=profile.kind==="teacher"
     ? classes.filter((c)=>String(c.lead_teacher??"").trim().toLowerCase()===auth.fullName.trim().toLowerCase())
     : classes;
-  const visibleClasses=profile.kind==="teacher"&&assigned.length?assigned:classes;
+  const visibleClasses=profile.kind==="teacher"?assigned:classes;
   const selectedClass=visibleClasses.some((c)=>c.id===class_id)?class_id:"";
 
   const rows=currentYear?(await query<Row>(
@@ -63,7 +63,7 @@ export default async function ClassroomPage({
       currentYear.id,
       selectedClass,
       String(q).trim(),
-      profile.kind==="teacher"&&assigned.length?assigned.map((c)=>c.id):null,
+      profile.kind==="teacher"?assigned.map((c)=>c.id):null,
       can("food.view"),
     ],
   )).rows:[];
@@ -79,7 +79,7 @@ export default async function ClassroomPage({
     </header>
 
     {profile.kind==="teacher"&&!assigned.length?<div className="notice">
-      Your account is not matched to a class by lead-teacher name, so the permitted active-class roster is shown. An administrator can set the class lead teacher to your account name to narrow this automatically.
+      No active class is assigned to your account. Ask an administrator to set the class lead teacher to your signed-in name before student records become visible here.
     </div>:null}
 
     <section className="panel classroom-filter">
