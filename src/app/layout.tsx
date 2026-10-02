@@ -15,7 +15,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en">
       <body>
-        {auth ? <AppNavigation permissions={auth.permissions} /> : null}
+        {auth ? <AppNavigation permissions={auth.permissions} roles={auth.roles} /> : null}
         {children}
         <UiInteractionGuard />
       </body>
