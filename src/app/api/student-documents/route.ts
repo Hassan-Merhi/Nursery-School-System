@@ -8,9 +8,12 @@ export const runtime = "nodejs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function back(request: Request, kind: "error" | "success", message: string) {
+function back(request: Request, kind: "error" | "success", message: string, returnTo?: string) {
+  const safeReturn = returnTo && /^\/students\/families\/[0-9a-f-]{36}$/i.test(returnTo)
+    ? returnTo
+    : "/students";
   return NextResponse.redirect(
-    new URL(`/students?${kind}=${encodeURIComponent(message)}`, request.url),
+    new URL(`${safeReturn}?${kind}=${encodeURIComponent(message)}#documents`, request.url),
     303,
   );
 }
@@ -26,13 +29,14 @@ export async function POST(request: Request) {
   const studentId = String(formData.get("student_id") ?? "").trim();
   const documentType = String(formData.get("document_type") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const returnTo = String(formData.get("return_to") ?? "").trim();
   const file = formData.get("file");
 
-  if (!UUID_RE.test(studentId)) return back(request, "error", "Invalid student.");
+  if (!UUID_RE.test(studentId)) return back(request, "error", "Invalid student.", returnTo);
   if (!documentType || documentType.length > 120) {
-    return back(request, "error", "Document type is required and must be under 120 characters.");
+    return back(request, "error", "Document type is required and must be under 120 characters.", returnTo);
   }
-  if (!(file instanceof File)) return back(request, "error", "No file selected.");
+  if (!(file instanceof File)) return back(request, "error", "No file selected.", returnTo);
 
   let stored: Awaited<ReturnType<typeof storeFile>> | null = null;
   try {
@@ -89,8 +93,8 @@ export async function POST(request: Request) {
   } catch (error) {
     if (stored) await removeStoredFile(stored.storageKey).catch(() => undefined);
     const message = error instanceof Error ? error.message : "Upload failed.";
-    return back(request, "error", message);
+    return back(request, "error", message, returnTo);
   }
 
-  return back(request, "success", "Student document uploaded and added to history.");
+  return back(request, "success", "Student document uploaded and added to history.", returnTo);
 }
