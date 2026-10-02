@@ -43,6 +43,11 @@ function optionalEmail(raw: string) {
   return raw || null;
 }
 
+function familyHubReturn(formData: FormData) {
+  const raw = value(formData, "return_to");
+  return /^\/students\/families\/[0-9a-f-]{36}$/i.test(raw) ? raw : null;
+}
+
 function uuidList(formData: FormData, key: string) {
   const raw = formData.getAll(key).map(String);
   if (raw.some((item) => !UUID_RE.test(item))) fail("Invalid selection.");
@@ -424,6 +429,11 @@ export async function createEnrollmentAction(formData: FormData) {
     });
   });
 
+  const returnTo = familyHubReturn(formData);
+  if (returnTo) {
+    revalidatePath(returnTo);
+    redirect(`${returnTo}?success=${encodeURIComponent("Student enrolled and term enrollment recorded.")}#enrollment`);
+  }
   success("Student enrolled and term enrollment recorded.");
 }
 
@@ -509,6 +519,11 @@ export async function withdrawEnrollmentAction(formData: FormData) {
     });
   });
 
+  const returnTo = familyHubReturn(formData);
+  if (returnTo) {
+    revalidatePath(returnTo);
+    redirect(`${returnTo}?success=${encodeURIComponent("Withdrawal recorded. Student and enrollment history were preserved.")}#enrollment`);
+  }
   success("Withdrawal recorded. Student and enrollment history were preserved.");
 }
 
