@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
+import { deriveUiProfile } from "@/lib/ui-profile";
 import { createEnrollmentAction, withdrawEnrollmentAction } from "../../actions";
 import { recordFamilyPaymentAction } from "@/app/billing/actions";
 import { createFoodSelectionAction, closeFoodSelectionAction } from "@/app/food/actions";
@@ -59,6 +60,8 @@ export default async function FamilyHubPage({
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const auth = await requireUser();
+  const profile = deriveUiProfile(auth.permissions, auth.roles);
+  if (profile.kind === "teacher") redirect("/classroom");
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const { error, success } = await searchParams;
