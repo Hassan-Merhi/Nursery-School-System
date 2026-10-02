@@ -22,7 +22,6 @@ export function LoginForm() {
           type="email"
           name="email"
           autoComplete="username"
-          disabled={false}
           required
         />
       </label>
