@@ -53,6 +53,12 @@ button, .button-link {
 
 button:hover, .button-link:hover { background: var(--accent-dark); }
 
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: wait;
+  opacity: .72;
+}
+
 button.secondary {
   background: #edf0ed;
   color: var(--ink);
