@@ -306,7 +306,10 @@ export default async function StudentsPage({
             Family records are the source of truth for sibling relationships and future sibling discounts.
           </p>
         </div>
-        <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
+        <div className="top-actions">
+          {can("families.manage")&&can("students.manage")&&can("enrollments.manage")?<Link className="button-link" href="/students/admissions">Enroll a child</Link>:null}
+          <Link className="button-link secondary-link" href="/dashboard">Home</Link>
+        </div>
       </header>
 
       {error ? <div className="notice error">{error}</div> : null}
@@ -390,7 +393,7 @@ export default async function StudentsPage({
               <article className="subcard" key={family.id}>
                 <div className="row-between">
                   <div><strong>{family.display_name}</strong><div className="muted">{family.family_number}{family.home_phone ? ` · ${family.home_phone}` : ""}</div></div>
-                  <div className="top-actions">{can("families.manage")&&can("students.manage")&&can("enrollments.manage")?<Link className="button-link" href="/students/admissions">Enroll a child</Link>:null}
+                  <div className="top-actions">
                     <span className="badge">{family.students.length} child{family.students.length === 1 ? "" : "ren"}</span>
                     <Link className="button-link secondary-link" href={`/students/families/${family.id}`}>Open family hub</Link>
                   </div>
