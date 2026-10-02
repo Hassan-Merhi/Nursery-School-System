@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
@@ -137,7 +138,7 @@ type HistoryRow = {
 type StudentModuleIconName = "families" | "students" | "classes" | "enrollment" | "documents" | "history";
 
 function StudentModuleIcon({ name }: { name: StudentModuleIconName }) {
-  const paths: Record<StudentModuleIconName, React.ReactNode> = {
+  const paths: Record<StudentModuleIconName, ReactNode> = {
     families: (
       <>
         <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
