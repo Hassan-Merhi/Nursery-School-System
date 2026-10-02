@@ -9,8 +9,11 @@ const MONEY_RE=/^\d+(?:\.\d{1,2})?$/;
 
 export function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
 export function bad(m:string):never{redirect("/payroll?error="+encodeURIComponent(m));}
-export function good(m:string):never{
-  revalidatePath("/payroll");revalidatePath("/accounting");revalidatePath("/operations");revalidatePath("/dashboard");
+export function good(m:string,d?:FormData):never{
+  revalidatePath("/payroll");revalidatePath("/staff");revalidatePath("/accounting");revalidatePath("/operations");revalidatePath("/dashboard");
+  const returnTo=d?String(d.get("return_to")??"").trim():"";
+  if(/^\/staff\/[0-9a-f-]{36}$/i.test(returnTo)){revalidatePath(returnTo);redirect(returnTo+"?success="+encodeURIComponent(m));}
+  if(returnTo==="/staff"){redirect("/staff?success="+encodeURIComponent(m));}
   redirect("/payroll?success="+encodeURIComponent(m));
 }
 export function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
