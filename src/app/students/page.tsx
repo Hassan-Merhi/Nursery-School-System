@@ -307,248 +307,354 @@ export default async function StudentsPage({
       )).rows
     : [];
 
+  const openEnrollments = enrollments.filter((item) => item.status === "enrolled").length;
+
   return (
-    <main className="app-shell">
-      <header className="topbar">
+    <main className="app-shell students-workspace-shell">
+      <header className="students-workspace-header">
         <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Families, Students & Enrollment</h1>
-          <p className="muted">
-            Family records are the source of truth for sibling relationships and future sibling discounts.
-          </p>
+          <p className="eyebrow">Students</p>
+          <h1>Families & enrollment</h1>
+          <p className="muted">Everything about children, families, classes and enrollment in one place.</p>
         </div>
-        <div className="top-actions">
-          {can("families.manage")&&can("students.manage")&&can("enrollments.manage")?<Link className="button-link" href="/students/admissions">Enroll a child</Link>:null}
-          <Link className="button-link secondary-link" href="/dashboard">Home</Link>
-        </div>
+        {can("families.manage") && can("students.manage") && can("enrollments.manage") ? (
+          <Link className="button-link students-primary-action" href="/students/admissions">Enroll a child</Link>
+        ) : null}
       </header>
 
       {error ? <div className="notice error">{error}</div> : null}
       {success ? <div className="notice success">{success}</div> : null}
 
-      <section className="status-grid">
-        <article className="panel">
-          <p className="eyebrow">Families</p>
-          <h2>{families.length} family records</h2>
-          <p className="muted">Parents, guardians, children and emergency contacts stay connected.</p>
-        </article>
-        <article className="panel">
-          <p className="eyebrow">Students</p>
-          <h2>{students.length} students</h2>
-          <p className="muted">Sibling relationships are derived from shared family membership.</p>
-        </article>
-        <article className="panel">
-          <p className="eyebrow">Enrollment</p>
-          <h2>{enrollments.filter((item) => item.status === "enrolled").length} open enrollments</h2>
-          <p className="muted">Term and mid-term start dates are preserved as historical records.</p>
-        </article>
+      <section className="students-summary-strip" aria-label="Student overview">
+        <a href="#families">
+          <span>Families</span>
+          <strong>{families.length}</strong>
+        </a>
+        <a href="#students">
+          <span>Students</span>
+          <strong>{students.length}</strong>
+        </a>
+        <a href="#enrollment">
+          <span>Enrolled</span>
+          <strong>{openEnrollments}</strong>
+        </a>
+        <a href="#classes">
+          <span>Classes</span>
+          <strong>{classes.length}</strong>
+        </a>
       </section>
 
-      {can("families.view") || can("families.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Family structure</p>
-              <h2>Families, parents & emergency contacts</h2>
-              <p className="muted">Create the family first, then attach parents/guardians and children.</p>
+      <nav className="students-jump-nav" aria-label="Student workspace sections">
+        {(can("families.view") || can("families.manage")) ? <a href="#families">Families</a> : null}
+        {(can("students.view") || can("students.manage")) ? <a href="#students">Students</a> : null}
+        {(can("classes.view") || can("classes.manage")) ? <a href="#classes">Classes</a> : null}
+        {(can("enrollments.view") || can("enrollments.manage")) ? <a href="#enrollment">Enrollment</a> : null}
+        {(can("student_documents.view") || can("student_documents.manage")) ? <a href="#documents">Documents</a> : null}
+        {can("student_history.view") ? <a href="#history">History</a> : null}
+      </nav>
+
+      <div className="students-module-list">
+        {can("families.view") || can("families.manage") ? (
+          <details className="students-module" id="families">
+            <summary>
+              <span className="students-module-title">
+                <span className="students-module-icon">F</span>
+                <span>
+                  <strong>Families</strong>
+                  <small>Parents, guardians and emergency contacts</small>
+                </span>
+              </span>
+              <span className="students-module-count">{families.length}</span>
+            </summary>
+            <div className="students-module-body">
+              {can("families.manage") ? (
+                <div className="students-action-row">
+                  <details className="students-action">
+                    <summary>Add family</summary>
+                    <form action={createFamilyAction} className="form-grid students-compact-form">
+                      <label>Family name<input name="display_name" placeholder="Merhi family" required /></label>
+                      <label>Home phone<input name="home_phone" /></label>
+                      <label className="span-2">Address<textarea name="address" /></label>
+                      <label className="span-2">Notes<textarea name="notes" /></label>
+                      <button type="submit">Create family</button>
+                    </form>
+                  </details>
+
+                  <details className="students-action">
+                    <summary>Add parent / guardian</summary>
+                    <form action={createGuardianAction} className="form-grid students-compact-form">
+                      <label>Family<select name="family_id" required defaultValue=""><option value="" disabled>Select family</option>{families.map((family) => <option key={family.id} value={family.id}>{family.display_name}</option>)}</select></label>
+                      <label>Relationship<input name="relationship" placeholder="Mother, father, guardian…" required /></label>
+                      <label>First name<input name="first_name" required /></label>
+                      <label>Last name<input name="last_name" required /></label>
+                      <label>Phone<input name="phone" required /></label>
+                      <label>Alternate phone<input name="alternate_phone" /></label>
+                      <label>Email<input name="email" type="email" /></label>
+                      <label>Occupation<input name="occupation" /></label>
+                      <label className="span-2">Address<textarea name="address" /></label>
+                      <fieldset className="span-2">
+                        <legend>Permissions</legend>
+                        <div className="check-grid">
+                          <label className="check"><input type="checkbox" name="is_primary" /> Primary guardian</label>
+                          <label className="check"><input type="checkbox" name="has_legal_custody" defaultChecked /> Legal custody</label>
+                          <label className="check"><input type="checkbox" name="pickup_authorized" defaultChecked /> Pickup authorized</label>
+                        </div>
+                      </fieldset>
+                      <button type="submit">Add guardian</button>
+                    </form>
+                  </details>
+
+                  <details className="students-action">
+                    <summary>Add emergency contact</summary>
+                    <form action={createEmergencyContactAction} className="form-grid students-compact-form">
+                      <label>Family<select name="family_id" required defaultValue=""><option value="" disabled>Select family</option>{families.map((family) => <option key={family.id} value={family.id}>{family.display_name}</option>)}</select></label>
+                      <label>Student (optional)<select name="student_id" defaultValue=""><option value="">Whole family</option>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+                      <label>Contact name<input name="full_name" required /></label>
+                      <label>Relationship<input name="relationship" required /></label>
+                      <label>Phone<input name="phone" required /></label>
+                      <label>Alternate phone<input name="alternate_phone" /></label>
+                      <label>Priority<input name="priority" type="number" min="1" max="9" defaultValue="1" required /></label>
+                      <label>Notes<input name="notes" /></label>
+                      <button type="submit">Add contact</button>
+                    </form>
+                  </details>
+                </div>
+              ) : null}
+
+              {families.length ? (
+                <div className="students-record-list">
+                  {families.map((family) => (
+                    <Link className="students-record-row" href={`/students/families/${family.id}`} key={family.id}>
+                      <span>
+                        <strong>{family.display_name}</strong>
+                        <small>{family.family_number}{family.home_phone ? ` · ${family.home_phone}` : ""}</small>
+                      </span>
+                      <span className="students-row-meta">
+                        <span>{family.students.length} child{family.students.length === 1 ? "" : "ren"}</span>
+                        <span aria-hidden="true">→</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : <div className="students-empty-state">No families yet.</div>}
             </div>
-          </div>
+          </details>
+        ) : null}
 
-          {can("families.manage") ? (
-            <>
-              <form action={createFamilyAction} className="form-grid create-box">
-                <label>Family display name<input name="display_name" placeholder="Merhi family" required /></label>
-                <label>Home phone<input name="home_phone" /></label>
-                <label className="span-2">Address<textarea name="address" /></label>
-                <label className="span-2">Notes<textarea name="notes" /></label>
-                <button type="submit">Create family</button>
-              </form>
-
-              <form action={createGuardianAction} className="form-grid create-box">
-                <label>Family<select name="family_id" required defaultValue=""><option value="" disabled>Select family</option>{families.map((family) => <option key={family.id} value={family.id}>{family.family_number} · {family.display_name}</option>)}</select></label>
-                <label>Relationship<input name="relationship" placeholder="Mother, father, guardian…" required /></label>
-                <label>First name<input name="first_name" required /></label>
-                <label>Last name<input name="last_name" required /></label>
-                <label>Phone<input name="phone" required /></label>
-                <label>Alternate phone<input name="alternate_phone" /></label>
-                <label>Email<input name="email" type="email" /></label>
-                <label>Occupation<input name="occupation" /></label>
-                <label className="span-2">Address<textarea name="address" /></label>
-                <fieldset className="span-2">
-                  <legend>Guardian permissions</legend>
-                  <div className="check-grid">
-                    <label className="check"><input type="checkbox" name="is_primary" /> Primary guardian</label>
-                    <label className="check"><input type="checkbox" name="has_legal_custody" defaultChecked /> Legal custody</label>
-                    <label className="check"><input type="checkbox" name="pickup_authorized" defaultChecked /> Pickup authorized</label>
-                  </div>
-                </fieldset>
-                <button type="submit">Add parent / guardian</button>
-              </form>
-
-              <form action={createEmergencyContactAction} className="form-grid create-box">
-                <label>Family<select name="family_id" required defaultValue=""><option value="" disabled>Select family</option>{families.map((family) => <option key={family.id} value={family.id}>{family.family_number} · {family.display_name}</option>)}</select></label>
-                <label>Student (optional)<select name="student_id" defaultValue=""><option value="">Whole family</option>{students.map((student) => <option key={student.id} value={student.id}>{student.student_number} · {student.first_name} {student.last_name}</option>)}</select></label>
-                <label>Contact name<input name="full_name" required /></label>
-                <label>Relationship<input name="relationship" required /></label>
-                <label>Phone<input name="phone" required /></label>
-                <label>Alternate phone<input name="alternate_phone" /></label>
-                <label>Priority<input name="priority" type="number" min="1" max="9" defaultValue="1" required /></label>
-                <label>Notes<input name="notes" /></label>
-                <button type="submit">Add emergency contact</button>
-              </form>
-            </>
-          ) : null}
-
-          <div className="card-list">
-            {families.map((family) => (
-              <article className="subcard" key={family.id}>
-                <div className="row-between">
-                  <div><strong>{family.display_name}</strong><div className="muted">{family.family_number}{family.home_phone ? ` · ${family.home_phone}` : ""}</div></div>
-                  <div className="top-actions">
-                    <span className="badge">{family.students.length} child{family.students.length === 1 ? "" : "ren"}</span>
-                    <Link className="button-link secondary-link" href={`/students/families/${family.id}`}>Open family hub</Link>
-                  </div>
-                </div>
-                {family.address ? <p className="muted">{family.address}</p> : null}
-                <div className="record-grid">
-                  <div><strong>Parents / guardians</strong>{family.guardians.length ? family.guardians.map((guardian) => <p className="muted compact-text" key={guardian.id}>{guardian.first_name} {guardian.last_name} · {guardian.relationship}{guardian.is_primary ? " · Primary" : ""} · {guardian.phone}</p>) : <p className="muted compact-text">None yet</p>}</div>
-                  <div><strong>Children</strong>{family.students.length ? family.students.map((student) => <p className="muted compact-text" key={student.id}>{student.student_number} · {student.first_name} {student.last_name} · {student.status}</p>) : <p className="muted compact-text">None yet</p>}</div>
-                  <div><strong>Emergency contacts</strong>{family.emergency_contacts.length ? family.emergency_contacts.map((contact) => <p className="muted compact-text" key={contact.id}>#{contact.priority} {contact.full_name} · {contact.relationship} · {contact.phone}{contact.student_name ? ` · ${contact.student_name}` : ""}</p>) : <p className="muted compact-text">None yet</p>}</div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {can("students.view") || can("students.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading"><div><p className="eyebrow">Student records</p><h2>Students & sibling relationships</h2></div></div>
-          {can("students.manage") ? (
-            <form action={createStudentAction} className="form-grid create-box">
-              <label>Family<select name="family_id" required defaultValue=""><option value="" disabled>Select family</option>{families.map((family) => <option key={family.id} value={family.id}>{family.family_number} · {family.display_name}</option>)}</select></label>
-              <label>Date of birth<input name="date_of_birth" type="date" required /></label>
-              <label>First name<input name="first_name" required /></label>
-              <label>Last name<input name="last_name" required /></label>
-              <label>Preferred name<input name="preferred_name" /></label>
-              <label>Gender<select name="gender" defaultValue=""><option value="">Not specified</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unspecified">Prefer not to say</option></select></label>
-              <label>Nationality<input name="nationality" /></label>
-              <label>Notes<input name="notes" /></label>
-              <button type="submit">Add student</button>
-            </form>
-          ) : null}
-
-          <div className="card-list">
-            {students.map((student) => (
-              <article className="subcard" key={student.id}>
-                <div className="row-between">
-                  <div><strong>{student.first_name} {student.last_name}</strong><div className="muted">{student.student_number} · {student.family_number} · {student.family_name}</div></div>
-                  <div className="top-actions">
-                    <span className="badge">{student.status}</span>
-                    <Link className="button-link secondary-link" href={`/students/${student.id}`}>Open student</Link>
-                  </div>
-                </div>
-                <p className="muted">Born {student.date_of_birth}{student.preferred_name ? ` · Preferred name: ${student.preferred_name}` : ""}</p>
-                <div className="chips">
-                  {student.siblings.length ? student.siblings.map((sibling) => <span className="chip" key={sibling.id}>Sibling: {sibling.name} ({sibling.student_number})</span>) : <span className="chip">No sibling currently in this family record</span>}
-                </div>
-                {can("students.manage") && !["active"].includes(student.status) ? (
-                  <form action={updateStudentStatusAction} className="inline-form compact-form">
-                    <input type="hidden" name="student_id" value={student.id} />
-                    <label>Status<select name="status" defaultValue={student.status === "withdrawn" ? "inactive" : student.status}><option value="prospective">Prospective</option><option value="inactive">Inactive</option><option value="graduated">Graduated</option></select></label>
-                    <label>Effective date<input name="effective_on" type="date" required /></label>
-                    <label>Note<input name="note" /></label>
-                    <button className="secondary" type="submit">Update status</button>
+        {can("students.view") || can("students.manage") ? (
+          <details className="students-module" id="students">
+            <summary>
+              <span className="students-module-title">
+                <span className="students-module-icon">S</span>
+                <span>
+                  <strong>Students</strong>
+                  <small>Student records and sibling relationships</small>
+                </span>
+              </span>
+              <span className="students-module-count">{students.length}</span>
+            </summary>
+            <div className="students-module-body">
+              {can("students.manage") ? (
+                <details className="students-action students-single-action">
+                  <summary>Add student</summary>
+                  <form action={createStudentAction} className="form-grid students-compact-form">
+                    <label>Family<select name="family_id" required defaultValue=""><option value="" disabled>Select family</option>{families.map((family) => <option key={family.id} value={family.id}>{family.display_name}</option>)}</select></label>
+                    <label>Date of birth<input name="date_of_birth" type="date" required /></label>
+                    <label>First name<input name="first_name" required /></label>
+                    <label>Last name<input name="last_name" required /></label>
+                    <label>Preferred name<input name="preferred_name" /></label>
+                    <label>Gender<select name="gender" defaultValue=""><option value="">Not specified</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unspecified">Prefer not to say</option></select></label>
+                    <label>Nationality<input name="nationality" /></label>
+                    <label>Notes<input name="notes" /></label>
+                    <button type="submit">Add student</button>
                   </form>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+                </details>
+              ) : null}
 
-      {can("classes.view") || can("classes.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading"><div><p className="eyebrow">Class structure</p><h2>Classes by school year</h2></div></div>
-          {can("classes.manage") ? (
-            <form action={createClassAction} className="form-grid create-box">
-              <label>School year<select name="school_year_id" required defaultValue=""><option value="" disabled>Select year</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name} · {year.status}</option>)}</select></label>
-              <label>Class name<input name="name" placeholder="Casa 1" required /></label>
-              <label>Room<input name="room" /></label>
-              <label>Lead teacher<input name="lead_teacher" list="teacher-user-names" placeholder="Select or enter teacher name" /><datalist id="teacher-user-names">{teacherUsers.map((teacher) => <option key={teacher.id} value={teacher.full_name}>{teacher.email}</option>)}</datalist></label>
-              <label>Capacity<input name="capacity" type="number" min="1" max="500" /></label>
-              <label>Status<select name="status" defaultValue="active"><option value="planned">Planned</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
-              <button type="submit">Create class</button>
-            </form>
-          ) : null}
-          <div className="table-wrap"><table><thead><tr><th>Year</th><th>Class</th><th>Teacher</th><th>Room</th><th>Enrollment</th><th>Status</th></tr></thead><tbody>{classes.map((item) => <tr key={item.id}><td>{item.school_year_name}</td><td>{item.name}</td><td>{item.lead_teacher ?? "—"}</td><td>{item.room ?? "—"}</td><td>{item.enrolled_count}{item.capacity ? ` / ${item.capacity}` : ""}</td><td>{item.status}</td></tr>)}</tbody></table></div>
-        </section>
-      ) : null}
+              {students.length ? (
+                <div className="students-record-list">
+                  {students.map((student) => (
+                    <div className="students-record-row students-record-row-static" key={student.id}>
+                      <Link className="students-row-link" href={`/students/${student.id}`}>
+                        <span>
+                          <strong>{student.first_name} {student.last_name}</strong>
+                          <small>{student.student_number} · {student.family_name}</small>
+                        </span>
+                        <span className="badge">{student.status}</span>
+                      </Link>
+                      {can("students.manage") && student.status !== "active" ? (
+                        <details className="students-inline-edit">
+                          <summary>Update status</summary>
+                          <form action={updateStudentStatusAction} className="inline-form compact-form">
+                            <input type="hidden" name="student_id" value={student.id} />
+                            <label>Status<select name="status" defaultValue={student.status === "withdrawn" ? "inactive" : student.status}><option value="prospective">Prospective</option><option value="inactive">Inactive</option><option value="graduated">Graduated</option></select></label>
+                            <label>Effective date<input name="effective_on" type="date" required /></label>
+                            <label>Note<input name="note" /></label>
+                            <button className="secondary" type="submit">Save</button>
+                          </form>
+                        </details>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : <div className="students-empty-state">No students yet.</div>}
+            </div>
+          </details>
+        ) : null}
 
-      {can("enrollments.view") || can("enrollments.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading"><div><p className="eyebrow">Enrollment</p><h2>School-year & term enrollment</h2><p className="muted">For mid-term enrollment, set the actual first attendance date. Selected term coverage starts on that date.</p></div></div>
-          {can("enrollments.manage") ? (
-            <form action={createEnrollmentAction} className="form-grid create-box">
-              <label>Student<select name="student_id" required defaultValue=""><option value="" disabled>Select student</option>{students.filter((student) => student.status !== "graduated").map((student) => <option key={student.id} value={student.id}>{student.student_number} · {student.first_name} {student.last_name}</option>)}</select></label>
-              <label>School year<select name="school_year_id" required defaultValue=""><option value="" disabled>Select year</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name}</option>)}</select></label>
-              <label>Class<select name="class_id" required defaultValue=""><option value="" disabled>Select class</option>{classes.filter((item) => item.status !== "archived").map((item) => <option key={item.id} value={item.id}>{item.school_year_name} · {item.name}</option>)}</select></label>
-              <label>Actual start date<input name="starts_on" type="date" required /></label>
-              <fieldset className="span-2"><legend>Term enrollment</legend><div className="permission-grid">{years.flatMap((year) => year.terms.map((term) => <label className="check permission-item" key={term.id}><input type="checkbox" name="term_id" value={term.id} disabled={term.status === "closed" || year.status === "closed"} /><span><strong>{year.name} · Term {term.sequence}{term.status === "closed" || year.status === "closed" ? " · CLOSED" : ""}</strong><small>{term.name} · {term.starts_on} to {term.ends_on}</small></span></label>))}</div></fieldset>
-              <label className="span-2">Notes<textarea name="notes" /></label>
-              <button type="submit">Enroll student</button>
-            </form>
-          ) : null}
-
-          <div className="card-list">
-            {enrollments.map((enrollment) => (
-              <article className="subcard" key={enrollment.id}>
-                <div className="row-between"><div><strong>{enrollment.student_name}</strong><div className="muted">{enrollment.student_number} · {enrollment.school_year_name} · {enrollment.class_name}</div></div><span className="badge">{enrollment.status}</span></div>
-                <p className="muted">Started {enrollment.starts_on}{enrollment.withdrawal_on ? ` · Withdrawn ${enrollment.withdrawal_on}` : ""}</p>
-                <div className="term-grid">{enrollment.terms.map((term) => <div key={term.id}><strong>{term.name}</strong><small>{term.starts_on} → {term.ends_on}</small><small>{term.status}</small></div>)}</div>
-                {enrollment.withdrawal_reason ? <p className="muted">Withdrawal reason: {enrollment.withdrawal_reason}</p> : null}
-                {can("enrollments.manage") && enrollment.status === "enrolled" ? (
-                  <form action={withdrawEnrollmentAction} className="inline-form compact-form">
-                    <input type="hidden" name="enrollment_id" value={enrollment.id} />
-                    <label>Withdrawal date<input name="withdrawal_on" type="date" min={enrollment.starts_on} required /></label>
-                    <label>Reason<input name="withdrawal_reason" required /></label>
-                    <button className="secondary" type="submit">Record withdrawal</button>
+        {can("classes.view") || can("classes.manage") ? (
+          <details className="students-module" id="classes">
+            <summary>
+              <span className="students-module-title">
+                <span className="students-module-icon">C</span>
+                <span>
+                  <strong>Classes</strong>
+                  <small>School-year classrooms and capacity</small>
+                </span>
+              </span>
+              <span className="students-module-count">{classes.length}</span>
+            </summary>
+            <div className="students-module-body">
+              {can("classes.manage") ? (
+                <details className="students-action students-single-action">
+                  <summary>Create class</summary>
+                  <form action={createClassAction} className="form-grid students-compact-form">
+                    <label>School year<select name="school_year_id" required defaultValue=""><option value="" disabled>Select year</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name} · {year.status}</option>)}</select></label>
+                    <label>Class name<input name="name" placeholder="Casa 1" required /></label>
+                    <label>Room<input name="room" /></label>
+                    <label>Lead teacher<input name="lead_teacher" list="teacher-user-names" placeholder="Teacher name" /><datalist id="teacher-user-names">{teacherUsers.map((teacher) => <option key={teacher.id} value={teacher.full_name}>{teacher.email}</option>)}</datalist></label>
+                    <label>Capacity<input name="capacity" type="number" min="1" max="500" /></label>
+                    <label>Status<select name="status" defaultValue="active"><option value="planned">Planned</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
+                    <button type="submit">Create class</button>
                   </form>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+                </details>
+              ) : null}
+              {classes.length ? (
+                <div className="responsive-card-table students-table">
+                  <table>
+                    <thead><tr><th>Class</th><th>Year</th><th>Teacher</th><th>Room</th><th>Enrollment</th><th>Status</th></tr></thead>
+                    <tbody>{classes.map((item) => <tr key={item.id}><td data-label="Class"><strong>{item.name}</strong></td><td data-label="Year">{item.school_year_name}</td><td data-label="Teacher">{item.lead_teacher ?? "—"}</td><td data-label="Room">{item.room ?? "—"}</td><td data-label="Enrollment">{item.enrolled_count}{item.capacity ? ` / ${item.capacity}` : ""}</td><td data-label="Status">{item.status}</td></tr>)}</tbody>
+                  </table>
+                </div>
+              ) : <div className="students-empty-state">No classes yet.</div>}
+            </div>
+          </details>
+        ) : null}
 
-      {can("student_documents.view") || can("student_documents.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading"><div><p className="eyebrow">Documents</p><h2>Student documents</h2></div></div>
-          {can("student_documents.manage") ? (
-            <form action="/api/student-documents" method="post" encType="multipart/form-data" className="form-grid create-box">
-              <label>Student<select name="student_id" required defaultValue=""><option value="" disabled>Select student</option>{students.map((student) => <option key={student.id} value={student.id}>{student.student_number} · {student.first_name} {student.last_name}</option>)}</select></label>
-              <label>Document type<input name="document_type" placeholder="Birth certificate, ID, consent…" required /></label>
-              <label>File<input type="file" name="file" required /></label>
-              <label>Notes<input name="notes" /></label>
-              <button type="submit">Upload student document</button>
-            </form>
-          ) : null}
-          {can("student_documents.view") ? <div className="table-wrap"><table><thead><tr><th>Student</th><th>Type</th><th>File</th><th>Size</th><th>Uploaded</th><th /></tr></thead><tbody>{documents.map((document) => <tr key={document.id}><td>{document.student_number} · {document.student_name}</td><td>{document.document_type}</td><td>{document.original_name}</td><td>{Math.ceil(Number(document.size_bytes) / 1024)} KB</td><td>{new Date(document.created_at).toLocaleString("en-GB")}</td><td><a href={`/api/student-documents/${document.id}`}>Open</a></td></tr>)}</tbody></table></div> : null}
-        </section>
-      ) : null}
+        {can("enrollments.view") || can("enrollments.manage") ? (
+          <details className="students-module" id="enrollment">
+            <summary>
+              <span className="students-module-title">
+                <span className="students-module-icon">E</span>
+                <span>
+                  <strong>Enrollment</strong>
+                  <small>School-year and term enrollment</small>
+                </span>
+              </span>
+              <span className="students-module-count">{openEnrollments}</span>
+            </summary>
+            <div className="students-module-body">
+              {can("enrollments.manage") ? (
+                <details className="students-action students-single-action">
+                  <summary>Enroll student</summary>
+                  <form action={createEnrollmentAction} className="form-grid students-compact-form">
+                    <label>Student<select name="student_id" required defaultValue=""><option value="" disabled>Select student</option>{students.filter((student) => student.status !== "graduated").map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+                    <label>School year<select name="school_year_id" required defaultValue=""><option value="" disabled>Select year</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name}</option>)}</select></label>
+                    <label>Class<select name="class_id" required defaultValue=""><option value="" disabled>Select class</option>{classes.filter((item) => item.status !== "archived").map((item) => <option key={item.id} value={item.id}>{item.school_year_name} · {item.name}</option>)}</select></label>
+                    <label>Start date<input name="starts_on" type="date" required /></label>
+                    <fieldset className="span-2"><legend>Terms</legend><div className="permission-grid">{years.flatMap((year) => year.terms.map((term) => <label className="check permission-item" key={term.id}><input type="checkbox" name="term_id" value={term.id} disabled={term.status === "closed" || year.status === "closed"} /><span><strong>{year.name} · Term {term.sequence}</strong><small>{term.name} · {term.starts_on} to {term.ends_on}</small></span></label>))}</div></fieldset>
+                    <label className="span-2">Notes<textarea name="notes" /></label>
+                    <button type="submit">Enroll student</button>
+                  </form>
+                </details>
+              ) : null}
 
-      {can("student_history.view") ? (
-        <section className="panel section-block">
-          <div className="section-heading"><div><p className="eyebrow">Permanent history</p><h2>Student history</h2><p className="muted">This log is append-only. Withdrawal changes status but does not erase prior records.</p></div></div>
-          <div className="table-wrap"><table><thead><tr><th>Date</th><th>Student</th><th>Event</th><th>Summary</th><th>Recorded by</th></tr></thead><tbody>{history.map((item) => <tr key={item.id}><td>{item.event_date}</td><td>{item.student_number} · {item.student_name}</td><td><code>{item.event_type}</code></td><td>{item.summary}</td><td>{item.actor_name ?? "System / unknown"}</td></tr>)}</tbody></table></div>
-        </section>
-      ) : null}
+              {enrollments.length ? (
+                <div className="students-record-list">
+                  {enrollments.map((enrollment) => (
+                    <div className="students-record-row students-record-row-static" key={enrollment.id}>
+                      <div className="students-row-link">
+                        <span>
+                          <strong>{enrollment.student_name}</strong>
+                          <small>{enrollment.school_year_name} · {enrollment.class_name} · started {enrollment.starts_on}</small>
+                        </span>
+                        <span className="badge">{enrollment.status}</span>
+                      </div>
+                      {can("enrollments.manage") && enrollment.status === "enrolled" ? (
+                        <details className="students-inline-edit">
+                          <summary>Withdraw</summary>
+                          <form action={withdrawEnrollmentAction} className="inline-form compact-form">
+                            <input type="hidden" name="enrollment_id" value={enrollment.id} />
+                            <label>Date<input name="withdrawal_on" type="date" min={enrollment.starts_on} required /></label>
+                            <label>Reason<input name="withdrawal_reason" required /></label>
+                            <button className="secondary" type="submit">Record withdrawal</button>
+                          </form>
+                        </details>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : <div className="students-empty-state">No enrollment records yet.</div>}
+            </div>
+          </details>
+        ) : null}
 
-      <section className="panel section-block">
-        <p className="eyebrow">Milestone 2 workflow</p>
-        <h2>Family → Parent → Child 1 + Child 2 → 2026–2027 Term 1</h2>
-        <p className="muted">Create the 2026–2027 school year in the Foundation dashboard if it does not exist, create a class here, then enroll both children with the September–December term selected. Their sibling relationship appears automatically because both children share the same family.</p>
-      </section>
+        {can("student_documents.view") || can("student_documents.manage") ? (
+          <details className="students-module" id="documents">
+            <summary>
+              <span className="students-module-title">
+                <span className="students-module-icon">D</span>
+                <span>
+                  <strong>Documents</strong>
+                  <small>Birth certificates, IDs, consent forms and more</small>
+                </span>
+              </span>
+              <span className="students-module-count">{documents.length}</span>
+            </summary>
+            <div className="students-module-body">
+              {can("student_documents.manage") ? (
+                <details className="students-action students-single-action">
+                  <summary>Upload document</summary>
+                  <form action="/api/student-documents" method="post" encType="multipart/form-data" className="form-grid students-compact-form">
+                    <label>Student<select name="student_id" required defaultValue=""><option value="" disabled>Select student</option>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+                    <label>Document type<input name="document_type" placeholder="Birth certificate, ID, consent…" required /></label>
+                    <label>File<input type="file" name="file" required /></label>
+                    <label>Notes<input name="notes" /></label>
+                    <button type="submit">Upload</button>
+                  </form>
+                </details>
+              ) : null}
+              {can("student_documents.view") && documents.length ? (
+                <div className="responsive-card-table students-table">
+                  <table><thead><tr><th>Student</th><th>Type</th><th>File</th><th>Uploaded</th><th /></tr></thead><tbody>{documents.map((document) => <tr key={document.id}><td data-label="Student">{document.student_name}</td><td data-label="Type">{document.document_type}</td><td data-label="File">{document.original_name}</td><td data-label="Uploaded">{new Date(document.created_at).toLocaleDateString("en-GB")}</td><td data-label="Action"><a href={`/api/student-documents/${document.id}`}>Open</a></td></tr>)}</tbody></table>
+                </div>
+              ) : <div className="students-empty-state">No student documents yet.</div>}
+            </div>
+          </details>
+        ) : null}
+
+        {can("student_history.view") ? (
+          <details className="students-module" id="history">
+            <summary>
+              <span className="students-module-title">
+                <span className="students-module-icon">H</span>
+                <span>
+                  <strong>History</strong>
+                  <small>Permanent student activity log</small>
+                </span>
+              </span>
+              <span className="students-module-count">{history.length}</span>
+            </summary>
+            <div className="students-module-body">
+              {history.length ? (
+                <div className="responsive-card-table students-table">
+                  <table><thead><tr><th>Date</th><th>Student</th><th>Event</th><th>Summary</th><th>Recorded by</th></tr></thead><tbody>{history.map((item) => <tr key={item.id}><td data-label="Date">{item.event_date}</td><td data-label="Student">{item.student_name}</td><td data-label="Event">{item.event_type}</td><td data-label="Summary">{item.summary}</td><td data-label="Recorded by">{item.actor_name ?? "System"}</td></tr>)}</tbody></table>
+                </div>
+              ) : <div className="students-empty-state">No history yet.</div>}
+            </div>
+          </details>
+        ) : null}
+      </div>
     </main>
   );
 }
