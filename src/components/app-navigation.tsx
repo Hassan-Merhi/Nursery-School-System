@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { deriveUiProfile } from "@/lib/ui-profile";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Props = {
   permissions: string[];
@@ -71,10 +72,13 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
           </Link>
           <span className="app-role-pill">{profile.label}</span>
         </div>
-        <div className="app-navigation-links">
-          {items.map((item) => (
-            <Link key={item.href} href={item.href}>{item.label}</Link>
-          ))}
+        <div className="app-navigation-actions">
+          <div className="app-navigation-links">
+            {items.map((item) => (
+              <Link key={item.href} href={item.href}>{item.label}</Link>
+            ))}
+          </div>
+          <ThemeToggle />
         </div>
       </nav>
     </div>
