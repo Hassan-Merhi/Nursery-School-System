@@ -52,7 +52,7 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
       show: !teacherMode && any(groups.money),
     },
     { href: "/staff", label: "Staff", show: !teacherMode && any(groups.staff) },
-    { href: "/food", label: "Food", show: canFood || canInventory },
+    { href: "/food", label: "Food", show: !teacherMode && (canFood || canInventory) },
     { href: canReports ? "/reports" : "/analytics", label: "Reports", show: !teacherMode && (canReports || canAnalytics) },
     { href: "/settings", label: canSettings ? "Settings" : "Account", show: true },
   ].filter((item) => item.show);
