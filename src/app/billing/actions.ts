@@ -16,7 +16,7 @@ function value(formData: FormData, key: string) {
 }
 
 function fail(message: string): never {
-  redirect(`/billing?error=${encodeURIComponent(message)}`);
+  redirect(`/billing/admin?error=${encodeURIComponent(message)}`);
 }
 
 function success(message: string): never {
