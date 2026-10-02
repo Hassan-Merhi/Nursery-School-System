@@ -2064,7 +2064,6 @@ html[data-theme="dark"] .classroom-student-card {
   }
 }
 
-
 /* Simplified Home + mobile navigation refresh */
 .home-dashboard {
   max-width: 1180px;
@@ -2117,6 +2116,7 @@ html[data-theme="dark"] .classroom-student-card {
   color: var(--ink);
   padding: 1rem;
   text-decoration: none;
+  transition: border-color .15s ease,transform .15s ease;
 }
 
 .home-stat-card:hover {
@@ -2155,30 +2155,26 @@ html[data-theme="dark"] .classroom-student-card {
   display: none;
 }
 
-.mobile-navigation > summary {
+.mobile-menu-button {
   display: grid;
   width: 2.45rem;
   min-width: 2.45rem;
   height: 2.45rem;
   min-height: 2.45rem;
   place-items: center;
-  margin: 0;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
   box-shadow: var(--shadow-card);
-  cursor: pointer;
-  list-style: none;
+  color: var(--ink);
+  padding: 0;
 }
 
-.mobile-navigation > summary::-webkit-details-marker {
-  display: none;
-}
-
-.mobile-navigation[open] > summary {
-  margin-bottom: 0;
+.mobile-menu-button:hover,
+.mobile-menu-button[aria-expanded="true"] {
   border-color: color-mix(in srgb,var(--accent) 40%,var(--line));
   background: var(--soft);
+  color: var(--accent-dark);
 }
 
 .mobile-menu-lines {
@@ -2321,3 +2317,4 @@ html[data-theme="dark"] .classroom-student-card {
     grid-template-columns: 1fr;
   }
 }
+
