@@ -2063,3 +2063,258 @@ html[data-theme="dark"] .classroom-student-card {
     color: #111;
   }
 }
+
+/* Simplified Home + mobile navigation refresh */
+.home-dashboard {
+  max-width: 1180px;
+}
+
+.home-header {
+  margin-bottom: 1.2rem;
+  padding: .35rem 0 .2rem;
+}
+
+.home-header h1 {
+  margin: .15rem 0 .3rem;
+}
+
+.home-header .muted {
+  margin: 0;
+}
+
+.home-section {
+  margin-top: 1.15rem;
+}
+
+.home-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .6rem;
+}
+
+.home-section-heading h2 {
+  margin: 0;
+}
+
+.home-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: .75rem;
+}
+
+.home-stat-card {
+  display: flex;
+  min-width: 0;
+  min-height: 8rem;
+  flex-direction: column;
+  gap: .55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  padding: 1rem;
+  text-decoration: none;
+  transition: border-color .15s ease,transform .15s ease;
+}
+
+.home-stat-card:hover {
+  border-color: color-mix(in srgb,var(--accent) 42%,var(--line));
+  transform: translateY(-1px);
+}
+
+.home-stat-label {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+
+.home-stat-value {
+  min-width: 0;
+  font-size: 1.4rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.home-stat-value .money-stack {
+  gap: .12rem;
+}
+
+.home-stat-open {
+  margin-top: auto;
+  color: var(--accent);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.mobile-navigation {
+  position: relative;
+  display: none;
+}
+
+.mobile-menu-button {
+  display: grid;
+  width: 2.45rem;
+  min-width: 2.45rem;
+  height: 2.45rem;
+  min-height: 2.45rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  padding: 0;
+}
+
+.mobile-menu-button:hover,
+.mobile-menu-button[aria-expanded="true"] {
+  border-color: color-mix(in srgb,var(--accent) 40%,var(--line));
+  background: var(--soft);
+  color: var(--accent-dark);
+}
+
+.mobile-menu-lines {
+  display: grid;
+  gap: 3px;
+}
+
+.mobile-menu-lines > span {
+  display: block;
+  width: 1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.mobile-navigation-panel {
+  position: absolute;
+  top: calc(100% + .55rem);
+  right: 0;
+  z-index: 70;
+  display: grid;
+  width: min(18rem,calc(100vw - 1rem));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: .9rem;
+  background: var(--panel);
+  box-shadow: 0 16px 46px rgba(0,0,0,.18);
+  padding: .45rem;
+}
+
+.mobile-navigation-panel a {
+  border-radius: .65rem;
+  color: var(--ink);
+  font-weight: 750;
+  padding: .72rem .8rem;
+  text-decoration: none;
+}
+
+.mobile-navigation-panel a:hover {
+  background: var(--soft);
+  color: var(--accent-dark);
+}
+
+@media (max-width: 980px) {
+  .home-stat-grid {
+    grid-template-columns: repeat(3,minmax(0,1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .app-navigation {
+    width: calc(100% - 1rem);
+    min-height: 3.75rem;
+    align-items: center !important;
+    flex-direction: row !important;
+    gap: .5rem;
+    padding: .55rem 0;
+  }
+
+  .app-brand-group {
+    width: auto !important;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    gap: .5rem;
+    overflow: hidden;
+  }
+
+  .app-brand {
+    min-width: 0;
+  }
+
+  .app-navigation-actions {
+    width: auto !important;
+    flex: 0 0 auto;
+    gap: .4rem;
+  }
+
+  .desktop-navigation-links {
+    display: none !important;
+  }
+
+  .mobile-navigation {
+    display: block;
+  }
+
+  .home-dashboard {
+    width: min(100% - 1rem,1180px);
+    padding-top: .8rem;
+  }
+
+  .home-header {
+    margin-bottom: .85rem;
+    padding-top: .15rem;
+  }
+
+  .home-header .eyebrow {
+    margin-bottom: .25rem;
+  }
+
+  .home-section {
+    margin-top: .9rem;
+  }
+
+  .home-stat-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: .6rem;
+  }
+
+  .home-stat-card {
+    min-height: 7rem;
+    gap: .45rem;
+    padding: .8rem;
+  }
+
+  .home-stat-label {
+    font-size: .68rem;
+  }
+
+  .home-stat-value {
+    font-size: 1.08rem;
+  }
+
+  .home-stat-open {
+    font-size: .75rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-role-pill {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-brand > span:last-child {
+    display: none;
+  }
+
+  .home-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

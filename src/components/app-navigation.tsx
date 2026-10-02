@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { deriveUiProfile } from "@/lib/ui-profile";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -28,6 +32,8 @@ const groups = {
 };
 
 export function AppNavigation({ permissions, roles = [] }: Props) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const can = (permission: string) => permissions.includes(permission);
   const any = (items: string[]) => items.some(can);
   const profile = deriveUiProfile(permissions, roles);
@@ -44,6 +50,10 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
     "users.view","users.manage","roles.view","roles.manage","settings.view","settings.manage",
     "documents.view","documents.manage","audit.view",
   ]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const teacherMode = profile.kind === "teacher";
   const receptionMode = profile.kind === "reception";
@@ -62,23 +72,54 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
     { href: "/settings", label: canSettings ? "Settings" : "Account", show: true },
   ].filter((item) => item.show);
 
+  const homeHref = can("dashboard.view") ? "/dashboard" : items[0]?.href ?? "/settings";
+
   return (
     <div className="app-navigation-shell no-print">
       <nav className="app-navigation" aria-label="Main navigation">
         <div className="app-brand-group">
-          <Link className="app-brand" href={can("dashboard.view") ? "/dashboard" : items[0]?.href ?? "/settings"} aria-label="Montikids home">
+          <Link className="app-brand" href={homeHref} aria-label="Montikids home">
             <span className="app-brand-mark">M</span>
             <span>Montikids</span>
           </Link>
           <span className="app-role-pill">{profile.label}</span>
         </div>
+
         <div className="app-navigation-actions">
-          <div className="app-navigation-links">
+          <div className="app-navigation-links desktop-navigation-links">
             {items.map((item) => (
               <Link key={item.href} href={item.href}>{item.label}</Link>
             ))}
           </div>
+
           <ThemeToggle />
+
+          <div className="mobile-navigation">
+            <button
+              className="mobile-menu-button"
+              type="button"
+              aria-label={mobileOpen ? "Close main menu" : "Open main menu"}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-main-navigation"
+              onClick={() => setMobileOpen((open) => !open)}
+            >
+              <span className="mobile-menu-lines" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+
+            {mobileOpen ? (
+              <div className="mobile-navigation-panel" id="mobile-main-navigation">
+                {items.map((item) => (
+                  <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </nav>
     </div>
