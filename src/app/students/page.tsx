@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
+import { deriveUiProfile } from "@/lib/ui-profile";
 import {
   createClassAction,
   createEmergencyContactAction,
@@ -152,6 +153,8 @@ export default async function StudentsPage({
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const auth = await requireUser();
+  const profile = deriveUiProfile(auth.permissions, auth.roles);
+  if (profile.kind === "teacher") redirect("/classroom");
   const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
   if (!STEP2_PERMISSIONS.some(can)) redirect("/forbidden");
