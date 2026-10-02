@@ -61,6 +61,7 @@ export default async function BillingPage({
   const can = (permission: string) => auth.permissions.includes(permission);
   const canFamilyWorkflow = ["billing.view","billing.manage","payments.view","payments.manage"].some(can);
   const canAdvanced = ["billing.manage","discounts.view","discounts.manage","discounts.approve"].some(can);
+  const canFoodBalance = ["food.view","food.manage","food.billing","food.payments"].some(can);
   if (!canFamilyWorkflow) {
     if (canAdvanced) redirect("/billing/admin");
     redirect("/forbidden");
@@ -102,13 +103,13 @@ export default async function BillingPage({
        group by i.family_id,i.currency`,
       [ids],
     ),
-    query<Row>(
+    canFoodBalance ? query<Row>(
       `select b.family_id,b.currency,sum(b.balance_amount)::numeric(14,2) amount
        from food_bill_balance b
        where b.family_id=any($1::uuid[]) and b.status in ('issued','partially_paid') and b.balance_amount>0
        group by b.family_id,b.currency`,
       [ids],
-    ),
+    ) : Promise.resolve({ rows: [] as Row[] }),
     query<Row>(
       `select p.family_id,p.currency,sum(p.unallocated_amount)::numeric(14,2) amount
        from payment_balance p
