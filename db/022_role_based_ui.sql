@@ -8,7 +8,7 @@ values
   ('Accounting','Daily finance plus advanced accounting, banking, supplier and reporting controls.',true),
   ('Payroll Manager','Employee, salary advance and payroll workflow without general accounting administration.',true),
   ('Food Manager','Student food plans, packages, purchasing, inventory and stock posting.',true)
-on conflict (lower(name)) do nothing;
+on conflict do nothing;
 
 with desired(role_name,permission_key) as (
   values
