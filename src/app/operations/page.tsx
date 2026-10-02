@@ -132,7 +132,7 @@ export default async function OperationsPage({searchParams}:{searchParams:Promis
       <div className="table-wrap"><table><thead><tr><th>Date</th><th>Number</th><th>Type</th><th>Accounts</th><th>Amount</th><th>Status</th><th /></tr></thead><tbody>{transactions.map((t)=><tr key={t.id}><td>{String(t.transaction_date).slice(0,10)}</td><td>{t.transaction_number}</td><td>{t.transaction_kind}</td><td>{t.account_name} ↔ {t.contra_name}</td><td>{money(t.amount,t.currency)}</td><td><span className="badge">{t.status}</span></td><td>{can("banking.manage")&&t.status==="posted"?<form action={reverseCashBankTransactionAction} className="inline-form"><input type="hidden" name="transaction_id" value={t.id}/><input type="date" name="reversal_date" defaultValue={today} required/><input name="reason" placeholder="Reason" required/><button className="secondary" type="submit">Reverse</button></form>:null}</td></tr>)}</tbody></table></div>
     </section>:null}
 
-    {can("expenses.view")||can("expenses.manage")||can("expenses.approve")||can("expenses.post")?<section className="panel section-block">
+    {can("expenses.view")||can("expenses.manage")||can("expenses.approve")||can("expenses.post")?<section className="panel section-block" id="expenses">
       <div className="section-heading"><div><p className="eyebrow">Expenses</p><h2>Expense entry, receipts & approvals</h2><p className="muted">Choose any custom Step 4 expense account and the actual cash/bank account that paid it.</p></div></div>
       {can("expenses.manage")?<form action={createExpenseAction} className="form-grid create-box">
         <label>Supplier (optional)<select name="supplier_id" defaultValue=""><option value="">No supplier</option>{suppliers.filter((s)=>s.status==="active").map((s)=><option key={s.id} value={s.id}>{s.supplier_number} · {s.name}</option>)}</select></label>
@@ -154,7 +154,7 @@ export default async function OperationsPage({searchParams}:{searchParams:Promis
       </article>)}</div>
     </section>:null}
 
-    {can("suppliers.view")||can("suppliers.manage")?<section className="panel section-block">
+    {can("suppliers.view")||can("suppliers.manage")?<section className="panel section-block" id="suppliers">
       <div className="section-heading"><div><p className="eyebrow">Suppliers</p><h2>Suppliers, invoices, payables & credits</h2></div></div>
       {can("suppliers.manage")?<form action={createSupplierAction} className="form-grid create-box">
         <label>Name<input name="name" required /></label><label>Contact<input name="contact_name" /></label><label>Email<input type="email" name="email" /></label><label>Phone<input name="phone" /></label><label>Tax number<input name="tax_number" /></label><label>Payment terms days<input name="payment_terms_days" type="number" min="0" defaultValue="0" /></label><label>Default expense account<select name="default_expense_account_id" defaultValue=""><option value="">None</option>{expenseAccounts.map((x)=><option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label>Default payment account<select name="default_payment_account_id" defaultValue=""><option value="">None</option>{cashBank.map((x)=><option key={x.account_id} value={x.account_id}>{x.display_name}</option>)}</select></label><label className="span-2">Address<input name="address" /></label><label className="span-2">Notes<input name="notes" /></label><button type="submit">Create supplier</button>
