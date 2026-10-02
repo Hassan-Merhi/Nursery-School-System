@@ -36,6 +36,11 @@ export default async function DashboardPage({
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const auth = await requireUser();
+  const canAdministration = [
+    "school_profile.view","school_profile.manage","school_years.view","school_years.manage",
+    "users.view","users.manage","roles.view","roles.manage","settings.view","settings.manage",
+    "documents.view","documents.manage","audit.view",
+  ].some((permission) => auth.permissions.includes(permission));
   const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
 
