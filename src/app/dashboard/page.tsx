@@ -1,633 +1,409 @@
 import { query } from "@/lib/db";
 import { requirePermission } from "@/lib/security";
-import {
-  changePasswordAction,
-  createRoleAction,
-  createSchoolYearAction,
-  createUserAction,
-  logoutAction,
-  updateRolePermissionsAction,
-  updateSchoolProfileAction,
-  updateSchoolTermStatusAction,
-  updateSettingsAction,
-  updateUserAccessAction,
-} from "./actions";
 
-type RoleRow = {
-  id: string;
-  name: string;
-  description: string | null;
-  is_system: boolean;
-  permissions: string[];
-};
+type Row = Record<string, any>;
+type MoneyValue = [string, number];
 
-type UserRow = {
-  id: string;
-  email: string;
-  full_name: string;
-  status: string;
-  last_login_at: Date | null;
-  roles: { id: string; name: string }[];
-};
+function money(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(amount) ? amount : 0);
+  } catch {
+    return `${currency} ${(Number.isFinite(amount) ? amount : 0).toFixed(2)}`;
+  }
+}
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
+function currencyTotals(rows: Row[], field: string): MoneyValue[] {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const currency = String(row.currency ?? "USD");
+    totals.set(currency, (totals.get(currency) ?? 0) + Number(row[field] ?? 0));
+  }
+  return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function MoneyStack({ values }: { values: MoneyValue[] }) {
+  if (!values.length) return <span>—</span>;
+  return (
+    <span className="money-stack">
+      {values.map(([currency, amount]) => (
+        <span key={currency}>{money(amount, currency)}</span>
+      ))}
+    </span>
+  );
+}
+
+export default async function DashboardPage() {
   const auth = await requirePermission("dashboard.view");
-  const { error, success } = await searchParams;
   const can = (permission: string) => auth.permissions.includes(permission);
-  const canStep2 = ["families.view","families.manage","students.view","students.manage","classes.view","classes.manage","enrollments.view","enrollments.manage","student_documents.view","student_documents.manage","student_history.view"].some(can);
-  const canStep3 = ["billing.view","billing.manage","discounts.view","discounts.manage","discounts.approve","payments.view","payments.manage"].some(can);
-  const canStep4 = ["accounting.view","accounting.manage","accounting.post","accounting.period_lock","accounting.mapping"].some(can);
-  const canStep5 = ["expenses.view","expenses.manage","expenses.approve","expenses.post","suppliers.view","suppliers.manage","banking.view","banking.manage","banking.reconcile","recurring_expenses.view","recurring_expenses.manage","refunds.manage"].some(can);
-  const canStep6 = ["rentals.view","rentals.manage","rentals.pay","rentals.post","rental_documents.view","rental_documents.manage"].some(can);
-  const canStep7 = ["employees.view","employees.manage","payroll.view","payroll.manage","payroll.approve","payroll.lock","payroll.pay","salary_advances.manage"].some(can);
-  const canStep8 = ["management.view","reports.view","reports.export","report_documents.view"].some(can);
-  const canStep10 = ["food.view","food.manage","food.billing","food.payments"].some(can);
-  const canStep11 = ["inventory.view","inventory.manage","inventory.purchase","inventory.post","inventory.adjust"].some(can);
-  const canStep12 = ["notifications.view","notifications.manage","notifications.run"].some(can);
-  const canStep13 = can("analytics.view");
+  const any = (permissions: string[]) => permissions.some(can);
 
-  const canViewProfile = can("school_profile.view") || can("school_profile.manage");
-  const canViewYears = can("school_years.view") || can("school_years.manage");
-  const canViewRoles = can("roles.view") || can("roles.manage") || can("users.manage");
-  const canViewPermissions = can("roles.view") || can("roles.manage");
-  const canViewUsers = can("users.view") || can("users.manage");
-  const canViewSettings = can("settings.view") || can("settings.manage");
-  const canViewDocuments = can("documents.view");
-  const canViewAudit = can("audit.view");
+  const canStudents = any([
+    "students.view","students.manage","families.view","families.manage",
+    "enrollments.view","enrollments.manage","management.view","reports.view",
+  ]);
+  const canFees = any([
+    "billing.view","billing.manage","payments.view","payments.manage",
+    "management.view","reports.view",
+  ]);
+  const canSuppliers = any([
+    "suppliers.view","suppliers.manage","expenses.view","expenses.manage",
+    "management.view","reports.view",
+  ]);
+  const canCash = any([
+    "banking.view","banking.manage","accounting.view","accounting.manage",
+    "management.view","reports.view",
+  ]);
+  const canRent = any([
+    "rentals.view","rentals.manage","rentals.pay","rentals.post",
+    "management.view","reports.view",
+  ]);
+  const canPayroll = any([
+    "payroll.view","payroll.manage","payroll.approve","payroll.lock","payroll.pay",
+    "management.view","reports.view",
+  ]);
+  const canAlerts = can("notifications.view");
+
+  const clock = (
+    await query<{ today: string; month_start: string; month_end: string }>(
+      `select
+         (now() at time zone sp.timezone)::date::text today,
+         date_trunc('month',now() at time zone sp.timezone)::date::text month_start,
+         (date_trunc('month',now() at time zone sp.timezone)+interval '1 month - 1 day')::date::text month_end
+       from school_profile sp where sp.id=1`,
+    )
+  ).rows[0];
+
+  const today = clock?.today ?? new Date().toISOString().slice(0, 10);
+  const monthStart = clock?.month_start ?? today.slice(0, 8) + "01";
+  const monthEnd = clock?.month_end ?? today;
+
+  const emptyRows = () => Promise.resolve({ rows: [] as Row[] });
 
   const [
-    profileResult,
-    schoolYearsResult,
-    rolesResult,
-    permissionsResult,
-    usersResult,
-    settingsResult,
-    sequencesResult,
-    documentsResult,
-    auditResult,
+    activeStudentsResult,
+    receivablesResult,
+    expectedResult,
+    collectedResult,
+    payablesResult,
+    cashBankResult,
+    rentDueResult,
+    payrollDueResult,
+    upcomingRentResult,
+    upcomingPayrollResult,
+    alertCountResult,
+    alertsResult,
   ] = await Promise.all([
-    canViewProfile
-      ? query("select * from school_profile where id=1")
-      : Promise.resolve({ rows: [] }),
-    canViewYears
-      ? query(
-          `select y.id,y.name,y.starts_on,y.ends_on,y.status,
-             coalesce(json_agg(
-               json_build_object(
-                 'id',t.id,'sequence',t.sequence,'name',t.name,'status',t.status,
-                 'starts_on',t.starts_on,'ends_on',t.ends_on
-               ) order by t.sequence
-             ) filter (where t.id is not null),'[]') as terms
-           from school_year y
-           left join school_term t on t.school_year_id=y.id
-           group by y.id
-           order by y.starts_on desc`,
+    canStudents
+      ? query<Row>("select report_active_student_count($1::date) as count", [today])
+      : emptyRows(),
+    canFees
+      ? query<Row>(
+          "select * from report_receivables($1::date) where balance_amount<>0 order by due_on,invoice_number",
+          [today],
         )
-      : Promise.resolve({ rows: [] }),
-    canViewRoles
-      ? query<RoleRow>(
-          `select r.id,r.name,r.description,r.is_system,
-             coalesce(array_agg(rp.permission_key order by rp.permission_key)
-               filter (where rp.permission_key is not null),'{}') as permissions
-           from role r
-           left join role_permission rp on rp.role_id=r.id
-           group by r.id
-           order by r.is_system desc,r.name`,
+      : emptyRows(),
+    canFees
+      ? query<Row>(
+          `select currency,coalesce(sum(total_amount),0)::numeric(14,2)::text amount
+           from invoice
+           where due_on between $1::date and $2::date and status not in ('draft','void')
+           group by currency order by currency`,
+          [monthStart, monthEnd],
         )
-      : Promise.resolve({ rows: [] as RoleRow[] }),
-    canViewPermissions
-      ? query<{ key: string; description: string }>(
-          "select key,description from permission order by key",
+      : emptyRows(),
+    canFees
+      ? query<Row>(
+          `select p.currency,coalesce(sum(pa.amount),0)::numeric(14,2)::text amount
+           from payment p
+           join payment_allocation pa on pa.payment_id=p.id
+           where p.received_on between $1::date and $2::date
+             and pa.allocated_on<=$2::date
+             and (p.status='posted' or p.reversed_at::date>$2::date)
+           group by p.currency order by p.currency`,
+          [monthStart, today],
         )
-      : Promise.resolve({ rows: [] as { key: string; description: string }[] }),
-    canViewUsers
-      ? query<UserRow>(
-          `select u.id,u.email,u.full_name,u.status,u.last_login_at,
-             coalesce(json_agg(
-               json_build_object('id',r.id,'name',r.name) order by r.name
-             ) filter (where r.id is not null),'[]') as roles
-           from app_user u
-           left join user_role ur on ur.user_id=u.id
-           left join role r on r.id=ur.role_id
-           group by u.id
-           order by u.full_name,u.email`,
+      : emptyRows(),
+    canSuppliers
+      ? query<Row>(
+          `select * from report_payables($1::date)
+           where balance_amount<>0 and due_on<=$1::date
+           order by due_on,supplier_invoice_number limit 50`,
+          [today],
         )
-      : Promise.resolve({ rows: [] as UserRow[] }),
-    canViewSettings
-      ? query<{ key: string; value: unknown }>(
-          "select key,value from app_setting order by key",
+      : emptyRows(),
+    canCash
+      ? query<Row>("select * from report_cash_bank_balances($1::date) order by account_kind,display_name", [today])
+      : emptyRows(),
+    canRent
+      ? query<Row>(
+          `select b.currency,b.normal_balance::numeric(14,2)::text amount
+           from accounting_mapping m
+           join report_account_balances($1::date) b on b.account_id=m.account_id
+           where m.role_key='rent_payable'`,
+          [today],
         )
-      : Promise.resolve({ rows: [] as { key: string; value: unknown }[] }),
-    canViewSettings
-      ? query<{ document_type: string; prefix: string; next_number: string }>(
-          "select document_type,prefix,next_number from document_sequence order by document_type",
+      : emptyRows(),
+    canPayroll
+      ? query<Row>(
+          `select b.currency,b.normal_balance::numeric(14,2)::text amount
+           from accounting_mapping m
+           join report_account_balances($1::date) b on b.account_id=m.account_id
+           where m.role_key in ('salary_payable','payroll_payable')`,
+          [today],
         )
-      : Promise.resolve({
-          rows: [] as { document_type: string; prefix: string; next_number: string }[],
-        }),
-    canViewDocuments
-      ? query<{
-          id: string;
-          original_name: string;
-          mime_type: string;
-          size_bytes: string;
-          uploaded_at: Date;
-          uploaded_by_name: string | null;
-        }>(
-          `select d.id,d.original_name,d.mime_type,d.size_bytes,d.uploaded_at,
-             u.full_name as uploaded_by_name
-           from stored_document d
-           left join app_user u on u.id=d.uploaded_by
-           order by d.uploaded_at desc limit 30`,
+      : emptyRows(),
+    canRent
+      ? query<Row>(
+          `select s.due_on,s.currency,
+             greatest(s.amount-coalesce(s.paid_amount,0),0)::numeric(14,2)::text amount_due,
+             a.agreement_number,a.property_name
+           from rent_schedule_balance s
+           join rental_agreement a on a.id=s.rental_agreement_id
+           where s.due_on between $1::date and ($1::date + interval '30 days')
+             and greatest(s.amount-coalesce(s.paid_amount,0),0)>0
+           order by s.due_on,a.agreement_number limit 5`,
+          [today],
         )
-      : Promise.resolve({
-          rows: [] as {
-            id: string;
-            original_name: string;
-            mime_type: string;
-            size_bytes: string;
-            uploaded_at: Date;
-            uploaded_by_name: string | null;
-          }[],
-        }),
-    canViewAudit
-      ? query<{
-          id: string;
-          occurred_at: Date;
-          action: string;
-          entity_type: string;
-          entity_id: string | null;
-          actor_name: string | null;
-        }>(
-          `select a.id,a.occurred_at,a.action,a.entity_type,a.entity_id,
-             u.full_name as actor_name
-           from audit_log a
-           left join app_user u on u.id=a.actor_user_id
-           order by a.occurred_at desc limit 50`,
+      : emptyRows(),
+    canPayroll
+      ? query<Row>(
+          `select run_number,pay_date,currency,net_pay,status
+           from payroll_run_summary
+           where pay_date between $1::date and ($1::date + interval '30 days')
+             and status in ('draft','pending','approved','locked')
+           order by pay_date,run_number limit 5`,
+          [today],
         )
-      : Promise.resolve({
-          rows: [] as {
-            id: string;
-            occurred_at: Date;
-            action: string;
-            entity_type: string;
-            entity_id: string | null;
-            actor_name: string | null;
-          }[],
-        }),
+      : emptyRows(),
+    canAlerts
+      ? query<Row>("select count(*)::int count from system_notification where status in ('open','snoozed')")
+      : emptyRows(),
+    canAlerts
+      ? query<Row>(
+          `select id,title,message,due_on,severity,status
+           from system_notification
+           where status in ('open','snoozed')
+           order by case severity when 'critical' then 1 when 'warning' then 2 else 3 end,
+                    due_on nulls last,created_at desc
+           limit 6`,
+        )
+      : emptyRows(),
   ]);
 
-  const profile = profileResult.rows[0] ?? null;
-  const schoolYears = schoolYearsResult.rows;
-  const roles: RoleRow[] = rolesResult.rows;
-  const permissions = permissionsResult.rows;
-  const users: UserRow[] = usersResult.rows;
-  const settings = settingsResult.rows;
-  const setting = new Map(settings.map((row) => [row.key, row.value]));
-  const sequences = sequencesResult.rows;
-  const documents = documentsResult.rows;
-  const auditRows = auditResult.rows;
-
-  const prefix = (type: string) =>
-    sequences.find((row) => row.document_type === type)?.prefix ?? "";
+  const activeStudents = Number(activeStudentsResult.rows[0]?.count ?? 0);
+  const receivables = receivablesResult.rows;
+  const payables = payablesResult.rows;
+  const cashBank = cashBankResult.rows;
+  const outstandingFees = currencyTotals(receivables, "balance_amount");
+  const supplierDue = currencyTotals(payables, "balance_amount");
+  const expectedFees = expectedResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
+  const collectedFees = collectedResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
+  const cash = currencyTotals(cashBank.filter((row) => row.account_kind === "cash"), "balance");
+  const bank = currencyTotals(cashBank.filter((row) => row.account_kind === "bank"), "balance");
+  const rentDue = rentDueResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
+  const payrollDue = payrollDueResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
+  const overdueFees = receivables.filter((row) => String(row.due_on ?? "").slice(0, 10) < today).length;
+  const overdueSupplierBills = payables.filter((row) => String(row.due_on ?? "").slice(0, 10) < today).length;
+  const alertCount = Number(alertCountResult.rows[0]?.count ?? 0);
+  const attentionVisible = canFees || canSuppliers || canRent || canPayroll || canAlerts;
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
+    <main className="app-shell dashboard-shell">
+      <header className="dashboard-hero">
         <div>
           <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Foundation & Security</h1>
+          <h1>What needs attention today?</h1>
           <p className="muted">
-            Signed in as {auth.fullName} · {auth.roles.join(", ") || "No role"}
+            {today} · Signed in as {auth.fullName}. This page shows live operational totals allowed by your role.
           </p>
-        </div>
-        <div className="top-actions">
-          {canStep2 ? <a className="button-link" href="/students">Families & students</a> : null}
-          {canStep3 ? <a className="button-link" href="/billing">Fees & billing</a> : null}
-          {canStep4 ? <a className="button-link" href="/accounting">Accounting</a> : null}
-          {canStep5 ? <a className="button-link" href="/operations">Operations</a> : null}
-          {canStep6 ? <a className="button-link" href="/rentals">Rentals</a> : null}
-          {canStep7 ? <a className="button-link" href="/payroll">Employees & payroll</a> : null}
-          {canStep8 ? <a className="button-link" href="/reports">Management & reports</a> : null}
-          {canStep10 ? <a className="button-link" href="/food">Food</a> : null}
-          {canStep11 ? <a className="button-link" href="/inventory">Food inventory</a> : null}
-          {canStep12 ? <a className="button-link" href="/notifications">Notifications</a> : null}
-          {canStep13 ? <a className="button-link" href="/analytics">Advanced analytics</a> : null}
-          <form action={logoutAction}>
-            <button className="secondary" type="submit">Sign out</button>
-          </form>
         </div>
       </header>
 
-      {error ? <div className="notice error">{error}</div> : null}
-      {success ? <div className="notice success">{success}</div> : null}
+      {attentionVisible ? (
+        <section className="attention-grid" aria-label="Items needing attention">
+          {canFees ? (
+            <a className="attention-card" href="/billing">
+              <p className="eyebrow">Outstanding fees</p>
+              <h2><MoneyStack values={outstandingFees} /></h2>
+              <p className="muted">{overdueFees} overdue invoice{overdueFees === 1 ? "" : "s"}.</p>
+            </a>
+          ) : null}
+          {canSuppliers ? (
+            <a className="attention-card" href="/operations">
+              <p className="eyebrow">Payments due</p>
+              <h2><MoneyStack values={supplierDue} /></h2>
+              <p className="muted">{overdueSupplierBills} overdue supplier bill{overdueSupplierBills === 1 ? "" : "s"}.</p>
+            </a>
+          ) : null}
+          {canRent ? (
+            <a className="attention-card" href="/rentals">
+              <p className="eyebrow">Rent due</p>
+              <h2><MoneyStack values={rentDue} /></h2>
+              <p className="muted">{upcomingRentResult.rows.length} rent payment{upcomingRentResult.rows.length === 1 ? "" : "s"} in the next 30 days.</p>
+            </a>
+          ) : null}
+          {canPayroll ? (
+            <a className="attention-card" href="/payroll">
+              <p className="eyebrow">Payroll due</p>
+              <h2><MoneyStack values={payrollDue} /></h2>
+              <p className="muted">{upcomingPayrollResult.rows.length} payroll run{upcomingPayrollResult.rows.length === 1 ? "" : "s"} in the next 30 days.</p>
+            </a>
+          ) : null}
+          {canAlerts ? (
+            <a className="attention-card" href="/notifications">
+              <p className="eyebrow">Alerts</p>
+              <h2>{alertCount}</h2>
+              <p className="muted">Open or snoozed operational alerts.</p>
+            </a>
+          ) : null}
+        </section>
+      ) : (
+        <section className="panel section-block">
+          <h2>No operational summaries are available for this role.</h2>
+          <p className="muted">Use the sections in the main menu for the areas you are permitted to access.</p>
+        </section>
+      )}
 
-      <section className="status-grid">
-        <article className="panel">
-          <p className="eyebrow">Security</p>
-          <h2>{auth.permissions.length} permissions active</h2>
-          <p className="muted">Server-side checks protect every privileged action.</p>
-        </article>
-        <article className="panel">
-          <p className="eyebrow">Academic structure</p>
-          <h2>3 fixed terms</h2>
-          <p className="muted">Sep–Dec · Jan–Mar · Apr–Jun</p>
-        </article>
-        <article className="panel">
-          <p className="eyebrow">Audit</p>
-          <h2>Append-only events</h2>
-          <p className="muted">Security and administration changes are recorded.</p>
-        </article>
+      <section className="dashboard-kpis">
+        {canStudents ? (
+          <article className="panel">
+            <p className="eyebrow">Active students</p>
+            <h2 className="metric-value">{activeStudents}</h2>
+            <p className="muted">Current active enrollment.</p>
+          </article>
+        ) : null}
+        {canFees ? (
+          <article className="panel">
+            <p className="eyebrow">Fees expected this month</p>
+            <h2 className="metric-value"><MoneyStack values={expectedFees} /></h2>
+            <p className="muted">Issued, non-void invoices due this month.</p>
+          </article>
+        ) : null}
+        {canFees ? (
+          <article className="panel">
+            <p className="eyebrow">Collected this month</p>
+            <h2 className="metric-value"><MoneyStack values={collectedFees} /></h2>
+            <p className="muted">Payments allocated to tuition this month.</p>
+          </article>
+        ) : null}
+        {canAlerts ? (
+          <article className="panel">
+            <p className="eyebrow">Open alerts</p>
+            <h2 className="metric-value">{alertCount}</h2>
+            <p className="muted">Notifications currently needing review.</p>
+          </article>
+        ) : null}
       </section>
 
-      {profile ? (
+      {canCash ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">School</p>
-              <h2>School profile</h2>
+              <p className="eyebrow">Cash position</p>
+              <h2>Cash & bank</h2>
             </div>
-            {!can("school_profile.manage") ? <span className="badge">Read only</span> : null}
+            <a className="button-link secondary-link" href="/operations">Open banking</a>
           </div>
-          <form action={updateSchoolProfileAction} className="form-grid">
-            <label>
-              School name
-              <input name="name" defaultValue={String(profile.name ?? "")} disabled={!can("school_profile.manage")} required />
-            </label>
-            <label>
-              Legal name
-              <input name="legal_name" defaultValue={String(profile.legal_name ?? "")} disabled={!can("school_profile.manage")} />
-            </label>
-            <label>
-              Email
-              <input type="email" name="email" defaultValue={String(profile.email ?? "")} disabled={!can("school_profile.manage")} />
-            </label>
-            <label>
-              Phone
-              <input name="phone" defaultValue={String(profile.phone ?? "")} disabled={!can("school_profile.manage")} />
-            </label>
-            <label>
-              Timezone
-              <input name="timezone" defaultValue={String(profile.timezone ?? "Asia/Beirut")} disabled={!can("school_profile.manage")} />
-            </label>
-            <label className="span-2">
-              Address
-              <textarea name="address" defaultValue={String(profile.address ?? "")} disabled={!can("school_profile.manage")} />
-            </label>
-            {can("school_profile.manage") ? <button type="submit">Save school profile</button> : null}
-          </form>
+          <div className="cash-bank-grid">
+            <div className="cash-bank-total">
+              <span>Cash</span>
+              <strong><MoneyStack values={cash} /></strong>
+            </div>
+            <div className="cash-bank-total">
+              <span>Bank</span>
+              <strong><MoneyStack values={bank} /></strong>
+            </div>
+          </div>
+          {cashBank.length ? (
+            <div className="table-wrap compact-dashboard-table">
+              <table>
+                <thead><tr><th>Account</th><th>Type</th><th>Currency</th><th>Balance</th></tr></thead>
+                <tbody>
+                  {cashBank.map((row) => (
+                    <tr key={row.account_id}>
+                      <td>{row.display_name}</td>
+                      <td>{row.account_kind}</td>
+                      <td>{row.currency}</td>
+                      <td>{money(Number(row.balance ?? 0), String(row.currency ?? "USD"))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="muted">No active cash or bank accounts.</p>}
         </section>
       ) : null}
 
-      {can("school_years.view") || can("school_years.manage") ? (
+      {(canRent || canPayroll) ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Academic calendar</p>
-              <h2>School years & terms</h2>
+              <p className="eyebrow">Next 30 days</p>
+              <h2>Upcoming payroll & rent</h2>
             </div>
           </div>
-          {can("school_years.manage") ? (
-            <form action={createSchoolYearAction} className="inline-form">
-              <label>
-                Start year
-                <input type="number" name="start_year" min="2000" max="2100" placeholder="2026" required />
-              </label>
-              <label>
-                Status
-                <select name="status" defaultValue="planned">
-                  <option value="planned">Planned</option>
-                  <option value="current">Current</option>
-                </select>
-              </label>
-              <button type="submit">Create year + 3 terms</button>
-            </form>
-          ) : null}
-          <div className="card-list">
-            {schoolYears.map((year: any) => (
-              <article className="subcard" key={year.id}>
-                <div className="row-between">
-                  <strong>{year.name}</strong>
-                  <span className="badge">{year.status}</span>
-                </div>
-                <div className="term-grid">
-                  {(year.terms as any[]).map((term) => (
-                    <div key={term.sequence}>
-                      <div className="row-between">
-                        <strong>Term {term.sequence}</strong>
-                        <span className="badge">{term.status}</span>
-                      </div>
-                      <span>{term.name}</span>
-                      <small>{String(term.starts_on).slice(0, 10)} → {String(term.ends_on).slice(0, 10)}</small>
-                      {can("school_years.manage") ? (
-                        <form action={updateSchoolTermStatusAction} className="compact-form">
-                          <input type="hidden" name="term_id" value={term.id} />
-                          <button
-                            type="submit"
-                            name="status"
-                            value={term.status === "closed" ? "open" : "closed"}
-                            className="secondary"
-                          >
-                            {term.status === "closed" ? "Reopen term" : "Close term"}
-                          </button>
-                        </form>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </article>
-            ))}
-            {!schoolYears.length ? <p className="muted">No school years yet.</p> : null}
-          </div>
-        </section>
-      ) : null}
-
-      {can("users.view") || can("users.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Access</p>
-              <h2>Users</h2>
-            </div>
-          </div>
-          {can("users.manage") ? (
-            <form action={createUserAction} className="form-grid create-box">
-              <label>
-                Full name
-                <input name="full_name" required />
-              </label>
-              <label>
-                Email
-                <input type="email" name="email" required />
-              </label>
-              <label>
-                Temporary password
-                <input type="password" name="password" minLength={12} required />
-                <small>12+ characters with uppercase, lowercase, and a number.</small>
-              </label>
-              <fieldset className="span-2">
-                <legend>Roles</legend>
-                <div className="check-grid">
-                  {roles.map((role) => (
-                    <label className="check" key={role.id}>
-                      <input type="checkbox" name="role_id" value={role.id} />
-                      {role.name}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <button type="submit">Create user</button>
-            </form>
-          ) : null}
-
-          <div className="card-list">
-            {users.map((user) => {
-              const assigned = new Set((user.roles ?? []).map((role) => role.id));
-              return (
-                <article className="subcard" key={user.id}>
-                  <div className="row-between">
-                    <div>
-                      <strong>{user.full_name}</strong>
-                      <div className="muted">{user.email}</div>
-                    </div>
-                    <span className="badge">{user.status}</span>
+          <div className="upcoming-grid">
+            {canRent ? (
+              <div>
+                <h3>Rent</h3>
+                {upcomingRentResult.rows.length ? (
+                  <div className="card-list">
+                    {upcomingRentResult.rows.map((row, index) => (
+                      <a className="dashboard-list-item" href="/rentals" key={row.agreement_number + ":" + index}>
+                        <span><strong>{row.property_name}</strong><small>{row.agreement_number} · due {String(row.due_on).slice(0, 10)}</small></span>
+                        <strong>{money(Number(row.amount_due), String(row.currency))}</strong>
+                      </a>
+                    ))}
                   </div>
-                  <p className="muted">
-                    Roles: {(user.roles ?? []).map((role) => role.name).join(", ") || "None"}
-                  </p>
-                  {can("users.manage") ? (
-                    <form action={updateUserAccessAction} className="compact-form">
-                      <input type="hidden" name="user_id" value={user.id} />
-                      <label>
-                        Status
-                        <select name="status" defaultValue={user.status}>
-                          <option value="active">Active</option>
-                          <option value="disabled">Disabled</option>
-                        </select>
-                      </label>
-                      <fieldset>
-                        <legend>Roles</legend>
-                        <div className="check-grid">
-                          {roles.map((role) => (
-                            <label className="check" key={role.id}>
-                              <input
-                                type="checkbox"
-                                name="role_id"
-                                value={role.id}
-                                defaultChecked={assigned.has(role.id)}
-                              />
-                              {role.name}
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
-                      <button type="submit" className="secondary">Update access</button>
-                    </form>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {can("roles.view") || can("roles.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Authorization</p>
-              <h2>Roles & fine-grained permissions</h2>
-            </div>
-          </div>
-          {can("roles.manage") ? (
-            <form action={createRoleAction} className="form-grid create-box">
-              <label>
-                Role name
-                <input name="name" required />
-              </label>
-              <label>
-                Description
-                <input name="description" />
-              </label>
-              <fieldset className="span-2">
-                <legend>Permissions</legend>
-                <div className="permission-grid">
-                  {permissions.map((permission) => (
-                    <label className="check permission-item" key={permission.key}>
-                      <input type="checkbox" name="permission" value={permission.key} />
-                      <span><strong>{permission.key}</strong><small>{permission.description}</small></span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <button type="submit">Create role</button>
-            </form>
-          ) : null}
-
-          <div className="card-list">
-            {roles.map((role) => {
-              const activePermissions = new Set(role.permissions ?? []);
-              return (
-                <article className="subcard" key={role.id}>
-                  <div className="row-between">
-                    <div>
-                      <strong>{role.name}</strong>
-                      <div className="muted">{role.description}</div>
-                    </div>
-                    {role.is_system ? <span className="badge">System role</span> : null}
+                ) : <p className="muted">No unpaid rent schedules due in the next 30 days.</p>}
+              </div>
+            ) : null}
+            {canPayroll ? (
+              <div>
+                <h3>Payroll</h3>
+                {upcomingPayrollResult.rows.length ? (
+                  <div className="card-list">
+                    {upcomingPayrollResult.rows.map((row) => (
+                      <a className="dashboard-list-item" href="/payroll" key={row.run_number}>
+                        <span><strong>{row.run_number}</strong><small>Pay date {String(row.pay_date).slice(0, 10)} · {row.status}</small></span>
+                        <strong>{money(Number(row.net_pay), String(row.currency))}</strong>
+                      </a>
+                    ))}
                   </div>
-                  {can("roles.manage") && !role.is_system ? (
-                    <form action={updateRolePermissionsAction} className="compact-form">
-                      <input type="hidden" name="role_id" value={role.id} />
-                      <div className="permission-grid">
-                        {permissions.map((permission) => (
-                          <label className="check permission-item" key={permission.key}>
-                            <input
-                              type="checkbox"
-                              name="permission"
-                              value={permission.key}
-                              defaultChecked={activePermissions.has(permission.key)}
-                            />
-                            <span><strong>{permission.key}</strong><small>{permission.description}</small></span>
-                          </label>
-                        ))}
-                      </div>
-                      <button type="submit" className="secondary">Save permissions</button>
-                    </form>
-                  ) : (
-                    <div className="chips">
-                      {(role.permissions ?? []).map((permission) => (
-                        <span className="chip" key={permission}>{permission}</span>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+                ) : <p className="muted">No payroll runs scheduled in the next 30 days.</p>}
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
 
-      {can("settings.view") || can("settings.manage") ? (
+      {canAlerts ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Configuration</p>
-              <h2>Core settings & numbering</h2>
+              <p className="eyebrow">Alerts</p>
+              <h2>Needs review</h2>
             </div>
+            <a className="button-link secondary-link" href="/notifications">Open notification center</a>
           </div>
-          <form action={updateSettingsAction} className="form-grid">
-            <label>
-              Currency
-              <input name="currency" maxLength={3} defaultValue={String(setting.get("currency") ?? "USD")} disabled={!can("settings.manage")} />
-            </label>
-            <label>
-              Number locale
-              <input name="number_locale" defaultValue={String(setting.get("number_locale") ?? "en-US")} disabled={!can("settings.manage")} />
-            </label>
-            <label>
-              Receipt prefix
-              <input name="receipt_prefix" defaultValue={prefix("receipt")} disabled={!can("settings.manage")} />
-            </label>
-            <label>
-              Invoice prefix
-              <input name="invoice_prefix" defaultValue={prefix("invoice")} disabled={!can("settings.manage")} />
-            </label>
-            <label>
-              Rental prefix
-              <input name="rental_prefix" defaultValue={prefix("rental")} disabled={!can("settings.manage")} />
-            </label>
-            {can("settings.manage") ? <button type="submit">Save settings</button> : null}
-          </form>
-          <div className="muted">
-            Backup policy: {JSON.stringify(setting.get("backup_strategy") ?? {})}
-          </div>
-        </section>
-      ) : null}
-
-      {can("documents.view") || can("documents.manage") ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Files</p>
-              <h2>Document storage</h2>
+          {alertsResult.rows.length ? (
+            <div className="card-list">
+              {alertsResult.rows.map((alert) => (
+                <a className="dashboard-list-item" href="/notifications" key={alert.id}>
+                  <span>
+                    <strong>{alert.title}</strong>
+                    <small>{alert.message}</small>
+                  </span>
+                  <span className="badge">{alert.severity}</span>
+                </a>
+              ))}
             </div>
-          </div>
-          {can("documents.manage") ? (
-            <form action="/api/documents" method="post" encType="multipart/form-data" className="inline-form">
-              <label>
-                Select document
-                <input type="file" name="file" required />
-              </label>
-              <button type="submit">Upload document</button>
-            </form>
-          ) : null}
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>File</th><th>Type</th><th>Size</th><th>Uploaded</th><th /></tr></thead>
-              <tbody>
-                {documents.map((document) => (
-                  <tr key={document.id}>
-                    <td>{document.original_name}</td>
-                    <td>{document.mime_type}</td>
-                    <td>{Math.ceil(Number(document.size_bytes) / 1024)} KB</td>
-                    <td>{new Date(document.uploaded_at).toLocaleString("en-GB")}</td>
-                    <td><a href={`/api/documents/${document.id}`}>Open</a></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="panel section-block">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Account</p>
-            <h2>Password security</h2>
-          </div>
-        </div>
-        <form action={changePasswordAction} className="inline-form">
-          <label>
-            Current password
-            <input type="password" name="current_password" autoComplete="current-password" required />
-          </label>
-          <label>
-            New password
-            <input type="password" name="new_password" autoComplete="new-password" minLength={12} required />
-          </label>
-          <button type="submit">Change password</button>
-        </form>
-      </section>
-
-      {can("audit.view") ? (
-        <section className="panel section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Audit trail</p>
-              <h2>Recent system events</h2>
-            </div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th></tr></thead>
-              <tbody>
-                {auditRows.map((row) => (
-                  <tr key={row.id}>
-                    <td>{new Date(row.occurred_at).toLocaleString("en-GB")}</td>
-                    <td>{row.actor_name ?? "System / unknown"}</td>
-                    <td><code>{row.action}</code></td>
-                    <td>{row.entity_type}{row.entity_id ? ` · ${row.entity_id}` : ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          ) : <p className="muted">No open alerts. Nothing needs review here right now.</p>}
         </section>
       ) : null}
     </main>
