@@ -336,10 +336,10 @@ export default async function DashboardPage() {
             </a>
           ) : null}
         </section>
-      ) : (
-        <section className="panel section-block">
-          <h2>No operational summaries are available for this role.</h2>
-          <p className="muted">Use the sections in the main menu for the areas you are permitted to access.</p>
+      ) : quickTasks.length ? null : (
+        <section className="panel section-block empty-state">
+          <strong>No items need attention here</strong>
+          <span>Use the available sections in the main menu for your permitted work.</span>
         </section>
       )}
 
