@@ -28,7 +28,7 @@ function currencyTotals(rows: Row[], field: string): MoneyValue[] {
 }
 
 function MoneyStack({ values }: { values: MoneyValue[] }) {
-  if (!values.length) return <span>—</span>;
+  if (!values.length) return <span className="home-empty-value">—</span>;
   return (
     <span className="money-stack">
       {values.map(([currency, amount]) => (
@@ -38,20 +38,24 @@ function MoneyStack({ values }: { values: MoneyValue[] }) {
   );
 }
 
-function OverviewCard({
+function MetricLink({
   href,
   label,
   children,
+  emphasis = false,
 }: {
   href: string;
   label: string;
   children: ReactNode;
+  emphasis?: boolean;
 }) {
   return (
-    <a className="home-stat-card" href={href}>
-      <span className="home-stat-label">{label}</span>
+    <a className={`home-stat-item${emphasis ? " home-stat-item-emphasis" : ""}`} href={href}>
+      <span className="home-stat-topline">
+        <span className="home-stat-label">{label}</span>
+        <span className="home-stat-arrow" aria-hidden="true">↗</span>
+      </span>
       <strong className="home-stat-value">{children}</strong>
-      <span className="home-stat-open">View details <span aria-hidden="true">→</span></span>
     </a>
   );
 }
@@ -194,56 +198,67 @@ export default async function DashboardPage() {
   return (
     <main className="app-shell dashboard-shell home-dashboard">
       <header className="home-header">
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-        <h1>Home</h1>
-        <p className="muted">{today} · {auth.fullName}</p>
+        <div>
+          <p className="eyebrow">Overview</p>
+          <h1>Home</h1>
+        </div>
+        <div className="home-header-meta">
+          <strong>{auth.fullName}</strong>
+          <span>{today}</span>
+        </div>
       </header>
 
       {hasSchoolOverview ? (
-        <section className="home-section" aria-labelledby="school-overview-title">
+        <section className="home-overview-panel" aria-labelledby="school-overview-title">
           <div className="home-section-heading">
-            <h2 id="school-overview-title">School overview</h2>
+            <div>
+              <p className="eyebrow">School</p>
+              <h2 id="school-overview-title">At a glance</h2>
+            </div>
           </div>
           <div className="home-stat-grid">
             {canStudents ? (
-              <OverviewCard href="/students" label="Active students">{activeStudents}</OverviewCard>
+              <MetricLink href="/students" label="Active students">{activeStudents}</MetricLink>
             ) : null}
             {canFees ? (
-              <OverviewCard href="/billing" label="Expected this month"><MoneyStack values={expectedFees} /></OverviewCard>
+              <MetricLink href="/billing" label="Expected"><MoneyStack values={expectedFees} /></MetricLink>
             ) : null}
             {canFees ? (
-              <OverviewCard href="/billing" label="Collected this month"><MoneyStack values={collectedFees} /></OverviewCard>
+              <MetricLink href="/billing" label="Collected"><MoneyStack values={collectedFees} /></MetricLink>
             ) : null}
             {canFees ? (
-              <OverviewCard href="/billing" label="Outstanding fees"><MoneyStack values={outstandingFees} /></OverviewCard>
+              <MetricLink href="/billing" label="Outstanding" emphasis><MoneyStack values={outstandingFees} /></MetricLink>
             ) : null}
             {canAlerts ? (
-              <OverviewCard href="/notifications" label="Open alerts">{alertCount}</OverviewCard>
+              <MetricLink href="/notifications" label="Alerts" emphasis={alertCount > 0}>{alertCount}</MetricLink>
             ) : null}
           </div>
         </section>
       ) : null}
 
       {hasMoneyOverview ? (
-        <section className="home-section" aria-labelledby="money-overview-title">
+        <section className="home-overview-panel" aria-labelledby="money-overview-title">
           <div className="home-section-heading">
-            <h2 id="money-overview-title">Money overview</h2>
+            <div>
+              <p className="eyebrow">Finance</p>
+              <h2 id="money-overview-title">Money</h2>
+            </div>
           </div>
-          <div className="home-stat-grid">
+          <div className="home-stat-grid home-stat-grid-secondary">
             {canCash ? (
-              <OverviewCard href="/money#cash-bank" label="Cash"><MoneyStack values={cash} /></OverviewCard>
+              <MetricLink href="/money#cash-bank" label="Cash"><MoneyStack values={cash} /></MetricLink>
             ) : null}
             {canCash ? (
-              <OverviewCard href="/money#cash-bank" label="Bank"><MoneyStack values={bank} /></OverviewCard>
+              <MetricLink href="/money#cash-bank" label="Bank"><MoneyStack values={bank} /></MetricLink>
             ) : null}
             {canSuppliers ? (
-              <OverviewCard href="/money#suppliers" label="Supplier bills due"><MoneyStack values={supplierDue} /></OverviewCard>
+              <MetricLink href="/money#suppliers" label="Supplier bills"><MoneyStack values={supplierDue} /></MetricLink>
             ) : null}
             {canRent ? (
-              <OverviewCard href="/money#rent" label="Rent due"><MoneyStack values={rentDue} /></OverviewCard>
+              <MetricLink href="/money#rent" label="Rent due"><MoneyStack values={rentDue} /></MetricLink>
             ) : null}
             {canPayroll ? (
-              <OverviewCard href="/staff" label="Payroll due"><MoneyStack values={payrollDue} /></OverviewCard>
+              <MetricLink href="/staff" label="Payroll due"><MoneyStack values={payrollDue} /></MetricLink>
             ) : null}
           </div>
         </section>
