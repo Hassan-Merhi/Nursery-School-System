@@ -116,7 +116,12 @@ try {
 
   // Common task 1: enroll a child.
   assert(admissions.includes("Enroll a child"), "Guided enrollment page is missing.");
-  assert(admissions.includes("Step 1") && admissions.includes("Step 2") && admissions.includes("Step 3"), "Enrollment steps are incomplete.");
+  assert(
+    admissions.includes('guided-step-number">1') &&
+    admissions.includes('guided-step-number">2') &&
+    admissions.includes('guided-step-number">3'),
+    "Enrollment steps are incomplete.",
+  );
   assert(admissionAction.includes("guidedEnrollmentAction"), "Guided enrollment transaction is missing.");
   assert(studentDirectory.includes('href="/students/admissions"'), "Students page must expose guided enrollment.");
 
@@ -145,6 +150,8 @@ try {
   }
   assert(studentDirectory.includes('profile.kind === "teacher"'), "Teacher must be redirected away from full Students administration.");
   assert(familyHub.includes('profile.kind === "teacher"'), "Teacher must be blocked from family financial hub.");
+  assert(classroom.includes('assigned.map((c)=>c.id)'), "Teacher roster must be scoped to assigned classes.");
+  assert(classroomDetail.includes("student.lead_teacher") && classroomDetail.includes("auth.fullName"), "Teacher student detail must enforce lead-teacher assignment.");
 
   console.log("Phase 9–10 role and usability verification passed.");
 } finally {
