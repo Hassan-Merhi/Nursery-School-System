@@ -78,8 +78,8 @@ export default async function InventoryPage({searchParams}:{searchParams:Promise
 
   return <main className="app-shell">
     <header className="topbar">
-      <div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Food Inventory & Purchasing</h1><p className="muted">Simple stock control without restaurant-style recipe costing.</p></div>
-      <div className="top-actions"><Link className="button-link secondary-link" href="/dashboard">Dashboard</Link><Link className="button-link secondary-link" href="/food">Food billing</Link><Link className="button-link secondary-link" href="/operations">Suppliers</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link></div>
+      <div><p className="eyebrow">Advanced inventory</p><h1>Inventory controls & purchasing</h1><p className="muted">Stock setup, receiving, posting, adjustments and accounting mappings. Routine food work starts in Food.</p></div>
+      <div className="top-actions"><Link className="button-link secondary-link" href="/food">Back to Food</Link><Link className="button-link secondary-link" href="/food">Food billing</Link><Link className="button-link secondary-link" href="/operations">Suppliers</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link></div>
     </header>
 
     {error?<div className="notice error">{error}</div>:null}
