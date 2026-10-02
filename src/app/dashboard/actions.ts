@@ -17,12 +17,12 @@ function value(formData: FormData, key: string) {
 }
 
 function fail(message: string): never {
-  redirect(`/dashboard?error=${encodeURIComponent(message)}`);
+  redirect(`/settings?error=${encodeURIComponent(message)}`);
 }
 
 function success(message: string): never {
-  revalidatePath("/dashboard");
-  redirect(`/dashboard?success=${encodeURIComponent(message)}`);
+  revalidatePath("/settings");
+  redirect(`/settings?success=${encodeURIComponent(message)}`);
 }
 
 function uuidList(formData: FormData, key: string) {
