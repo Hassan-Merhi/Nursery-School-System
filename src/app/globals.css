@@ -2067,87 +2067,166 @@ html[data-theme="dark"] .classroom-student-card {
 /* Simplified Home + mobile navigation refresh */
 .home-dashboard {
   max-width: 1180px;
+  padding-top: 1.15rem;
 }
 
 .home-header {
-  margin-bottom: 1.2rem;
-  padding: .35rem 0 .2rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: .1rem .15rem;
 }
 
 .home-header h1 {
-  margin: .15rem 0 .3rem;
+  margin: .08rem 0 0;
+  font-size: clamp(1.9rem,3vw,2.7rem);
 }
 
-.home-header .muted {
+.home-header .eyebrow {
   margin: 0;
 }
 
-.home-section {
-  margin-top: 1.15rem;
+.home-header-meta {
+  display: grid;
+  justify-items: end;
+  gap: .1rem;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.home-header-meta strong {
+  color: var(--ink);
+  font-size: .88rem;
+}
+
+.home-overview-panel {
+  overflow: hidden;
+  margin-top: .85rem;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(135deg,color-mix(in srgb,var(--soft) 36%,var(--panel)),var(--panel) 38%);
+  box-shadow: 0 12px 34px rgba(32,52,45,.055);
 }
 
 .home-section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: .6rem;
+  margin: 0;
+  padding: .85rem 1rem .7rem;
+  border-bottom: 1px solid color-mix(in srgb,var(--line) 78%,transparent);
+}
+
+.home-section-heading .eyebrow {
+  margin: 0 0 .12rem;
+  font-size: .67rem;
 }
 
 .home-section-heading h2 {
   margin: 0;
+  font-size: 1rem;
 }
 
 .home-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4,minmax(0,1fr));
-  gap: .75rem;
+  grid-template-columns: repeat(5,minmax(0,1fr));
 }
 
-.home-stat-card {
+.home-stat-item {
+  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 8rem;
+  min-height: 7.15rem;
   flex-direction: column;
-  gap: .55rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--panel);
-  box-shadow: var(--shadow-card);
+  justify-content: space-between;
+  gap: .65rem;
   color: var(--ink);
   padding: 1rem;
   text-decoration: none;
-  transition: border-color .15s ease,transform .15s ease;
+  transition: background-color .15s ease,transform .15s ease;
 }
 
-.home-stat-card:hover {
-  border-color: color-mix(in srgb,var(--accent) 42%,var(--line));
-  transform: translateY(-1px);
+.home-stat-item + .home-stat-item {
+  border-left: 1px solid color-mix(in srgb,var(--line) 78%,transparent);
+}
+
+.home-stat-item:hover {
+  background: color-mix(in srgb,var(--soft) 48%,transparent);
+}
+
+.home-stat-item:active {
+  transform: translateY(1px);
+}
+
+.home-stat-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .5rem;
 }
 
 .home-stat-label {
   color: var(--muted);
-  font-size: .78rem;
+  font-size: .72rem;
   font-weight: 800;
   letter-spacing: .025em;
   text-transform: uppercase;
 }
 
+.home-stat-arrow {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: color-mix(in srgb,var(--muted) 78%,transparent);
+  font-size: .86rem;
+  transition: border-color .15s ease,color .15s ease,transform .15s ease;
+}
+
+.home-stat-item:hover .home-stat-arrow {
+  border-color: var(--line);
+  color: var(--accent);
+  transform: translate(1px,-1px);
+}
+
 .home-stat-value {
   min-width: 0;
-  font-size: 1.4rem;
-  line-height: 1.2;
+  font-size: clamp(1.35rem,2vw,1.85rem);
+  line-height: 1.12;
+  letter-spacing: -.035em;
   overflow-wrap: anywhere;
 }
 
 .home-stat-value .money-stack {
-  gap: .12rem;
+  gap: .08rem;
 }
 
-.home-stat-open {
-  margin-top: auto;
-  color: var(--accent);
-  font-size: .82rem;
-  font-weight: 800;
+.home-empty-value {
+  color: color-mix(in srgb,var(--muted) 66%,transparent);
+  font-weight: 650;
+}
+
+.home-stat-item-emphasis::after {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  bottom: .75rem;
+  left: 1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb,var(--accent) 68%,transparent);
+  opacity: .55;
+}
+
+html[data-theme="dark"] .home-overview-panel {
+  background:
+    linear-gradient(135deg,color-mix(in srgb,var(--soft) 50%,var(--panel)),var(--panel) 42%);
+  box-shadow: 0 14px 36px rgba(0,0,0,.18);
 }
 
 .mobile-navigation {
@@ -2222,6 +2301,14 @@ html[data-theme="dark"] .classroom-student-card {
   .home-stat-grid {
     grid-template-columns: repeat(3,minmax(0,1fr));
   }
+
+  .home-stat-item:nth-child(4) {
+    border-left: 0;
+  }
+
+  .home-stat-item:nth-child(n+4) {
+    border-top: 1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  }
 }
 
 @media (max-width: 820px) {
@@ -2262,43 +2349,60 @@ html[data-theme="dark"] .classroom-student-card {
 
   .home-dashboard {
     width: min(100% - 1rem,1180px);
-    padding-top: .8rem;
+    padding-top: .7rem;
   }
 
   .home-header {
-    margin-bottom: .85rem;
-    padding-top: .15rem;
+    align-items: flex-start;
+    margin-bottom: .7rem;
   }
 
-  .home-header .eyebrow {
-    margin-bottom: .25rem;
+  .home-header-meta {
+    display: none;
   }
 
-  .home-section {
-    margin-top: .9rem;
+  .home-overview-panel {
+    margin-top: .7rem;
+    border-radius: 1rem;
+  }
+
+  .home-section-heading {
+    padding: .72rem .8rem .6rem;
   }
 
   .home-stat-grid {
     grid-template-columns: repeat(2,minmax(0,1fr));
-    gap: .6rem;
   }
 
-  .home-stat-card {
-    min-height: 7rem;
-    gap: .45rem;
-    padding: .8rem;
+  .home-stat-item {
+    min-height: 6.15rem;
+    padding: .82rem;
+  }
+
+  .home-stat-item + .home-stat-item {
+    border-left: 0;
+  }
+
+  .home-stat-item:nth-child(even) {
+    border-left: 1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  }
+
+  .home-stat-item:nth-child(n+3) {
+    border-top: 1px solid color-mix(in srgb,var(--line) 78%,transparent);
   }
 
   .home-stat-label {
-    font-size: .68rem;
+    font-size: .66rem;
   }
 
   .home-stat-value {
-    font-size: 1.08rem;
+    font-size: 1.28rem;
   }
 
-  .home-stat-open {
-    font-size: .75rem;
+  .home-stat-item-emphasis::after {
+    right: .82rem;
+    bottom: .62rem;
+    left: .82rem;
   }
 }
 
@@ -2315,6 +2419,14 @@ html[data-theme="dark"] .classroom-student-card {
 
   .home-stat-grid {
     grid-template-columns: 1fr;
+  }
+
+  .home-stat-item:nth-child(even) {
+    border-left: 0;
+  }
+
+  .home-stat-item + .home-stat-item {
+    border-top: 1px solid color-mix(in srgb,var(--line) 78%,transparent);
   }
 }
 
