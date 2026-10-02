@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppNavigation } from "@/components/app-navigation";
 import { getAuthContext } from "@/lib/security";
+import { UiInteractionGuard } from "@/components/ui-interaction-guard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         {auth ? <AppNavigation permissions={auth.permissions} /> : null}
         {children}
+        <UiInteractionGuard />
       </body>
     </html>
   );
