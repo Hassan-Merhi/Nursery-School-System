@@ -112,7 +112,7 @@ try {
 
   assert(navigation.includes("deriveUiProfile"), "Main navigation must be permission-profile aware.");
   assert(navigation.includes('label: "Payments"') || navigation.includes('"Payments"'), "Reception payment navigation is missing.");
-  assert(dashboard.includes("home-stat-grid") && dashboard.includes("View details"), "Simple dashboard overview cards are missing.");
+  assert(dashboard.includes("home-stat-grid") && dashboard.includes("home-stat-item"), "Modern dashboard overview metrics are missing.");
   assert(navigation.includes("mobile-navigation") && navigation.includes("mobile-menu-button"), "Mobile navigation menu is missing.");
 
   // Common task 1: enroll a child.
