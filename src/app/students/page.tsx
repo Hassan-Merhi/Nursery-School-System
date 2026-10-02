@@ -387,7 +387,10 @@ export default async function StudentsPage({
               <article className="subcard" key={family.id}>
                 <div className="row-between">
                   <div><strong>{family.display_name}</strong><div className="muted">{family.family_number}{family.home_phone ? ` · ${family.home_phone}` : ""}</div></div>
-                  <span className="badge">{family.students.length} child{family.students.length === 1 ? "" : "ren"}</span>
+                  <div className="top-actions">
+                    <span className="badge">{family.students.length} child{family.students.length === 1 ? "" : "ren"}</span>
+                    <Link className="button-link secondary-link" href={`/students/families/${family.id}`}>Open family hub</Link>
+                  </div>
                 </div>
                 {family.address ? <p className="muted">{family.address}</p> : null}
                 <div className="record-grid">
@@ -423,7 +426,10 @@ export default async function StudentsPage({
               <article className="subcard" key={student.id}>
                 <div className="row-between">
                   <div><strong>{student.first_name} {student.last_name}</strong><div className="muted">{student.student_number} · {student.family_number} · {student.family_name}</div></div>
-                  <span className="badge">{student.status}</span>
+                  <div className="top-actions">
+                    <span className="badge">{student.status}</span>
+                    <Link className="button-link secondary-link" href={`/students/${student.id}`}>Open student</Link>
+                  </div>
                 </div>
                 <p className="muted">Born {student.date_of_birth}{student.preferred_name ? ` · Preferred name: ${student.preferred_name}` : ""}</p>
                 <div className="chips">
