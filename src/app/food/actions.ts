@@ -15,6 +15,10 @@ const KINDS=new Set(["daily","weekly","monthly","term"]);
 const METHODS=new Set(["cash","card","bank_transfer","check","other"]);
 
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
+function familyHubReturn(d:FormData){
+  const raw=v(d,"return_to");
+  return /^\/students\/families\/[0-9a-f-]{36}$/i.test(raw)?raw:null;
+}
 function bad(m:string):never{redirect("/food?error="+encodeURIComponent(m));}
 function good(m:string):never{
   revalidatePath("/food"); revalidatePath("/billing"); revalidatePath("/accounting");
@@ -170,6 +174,11 @@ export async function createFoodSelectionAction(d:FormData){
     if(!r.rows[0])bad("Student or package not found.");
     await writeAudit(c,{actorUserId:a.userId,action:"student_food_selected",entityType:"student_food_selection",entityId:r.rows[0].id,after:{studentId:student,foodPackageId:pack,startsOn:start,endsOn:end,quantity}});
   });
+  const returnTo=familyHubReturn(d);
+  if(returnTo){
+    revalidatePath(returnTo);
+    redirect(returnTo+"?success="+encodeURIComponent("Student food selection created with the package price snapshotted.")+"#food");
+  }
   good("Student food selection created with the package price snapshotted.");
 }
 
@@ -183,6 +192,12 @@ export async function closeFoodSelectionAction(d:FormData){
     await c.query("update student_food_selection set status=$2,ended_at=now(),ended_by=$3 where id=$1",[selection,status,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:status==="cancelled"?"student_food_selection_cancelled":"student_food_selection_ended",entityType:"student_food_selection",entityId:selection,before,after:{...before,status}});
   });
+  const returnTo=familyHubReturn(d);
+  if(returnTo){
+    const message=status==="cancelled"?"Food selection cancelled.":"Food selection ended.";
+    revalidatePath(returnTo);
+    redirect(returnTo+"?success="+encodeURIComponent(message)+"#food");
+  }
   good(status==="cancelled"?"Food selection cancelled.":"Food selection ended.");
 }
 
