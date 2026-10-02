@@ -9,8 +9,10 @@ export const db =
   new Pool({
     ...(connectionString ? { connectionString } : {}),
     max: 10,
-    idleTimeoutMillis: 30_000,
+    idleTimeoutMillis: 5 * 60_000,
     connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   });
 
 if (process.env.NODE_ENV !== "production") {
