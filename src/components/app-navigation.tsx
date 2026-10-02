@@ -62,23 +62,43 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
     { href: "/settings", label: canSettings ? "Settings" : "Account", show: true },
   ].filter((item) => item.show);
 
+  const homeHref = can("dashboard.view") ? "/dashboard" : items[0]?.href ?? "/settings";
+
   return (
     <div className="app-navigation-shell no-print">
       <nav className="app-navigation" aria-label="Main navigation">
         <div className="app-brand-group">
-          <Link className="app-brand" href={can("dashboard.view") ? "/dashboard" : items[0]?.href ?? "/settings"} aria-label="Montikids home">
+          <Link className="app-brand" href={homeHref} aria-label="Montikids home">
             <span className="app-brand-mark">M</span>
             <span>Montikids</span>
           </Link>
           <span className="app-role-pill">{profile.label}</span>
         </div>
+
         <div className="app-navigation-actions">
-          <div className="app-navigation-links">
+          <div className="app-navigation-links desktop-navigation-links">
             {items.map((item) => (
               <Link key={item.href} href={item.href}>{item.label}</Link>
             ))}
           </div>
+
           <ThemeToggle />
+
+          <details className="mobile-navigation">
+            <summary aria-label="Open main menu">
+              <span className="mobile-menu-lines" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="sr-only">Menu</span>
+            </summary>
+            <div className="mobile-navigation-panel">
+              {items.map((item) => (
+                <Link key={item.href} href={item.href}>{item.label}</Link>
+              ))}
+            </div>
+          </details>
         </div>
       </nav>
     </div>
