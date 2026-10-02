@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/security";
-import { loginAction } from "./actions";
+import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
   searchParams,
@@ -20,22 +20,7 @@ export default async function LoginPage({
           Sign in with an account created by an administrator.
         </p>
         {error ? <div className="notice error">{error}</div> : null}
-        <form action={loginAction} className="stack">
-          <label>
-            Email
-            <input type="email" name="email" autoComplete="username" required />
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          <button type="submit">Sign in</button>
-        </form>
+        <LoginForm />
       </section>
     </main>
   );

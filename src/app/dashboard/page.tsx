@@ -50,13 +50,31 @@ export default async function DashboardPage({
   const canStep12 = ["notifications.view","notifications.manage","notifications.run"].some(can);
   const canStep13 = can("analytics.view");
 
-  const profile = can("school_profile.view") || can("school_profile.manage")
-    ? (await query("select * from school_profile where id=1")).rows[0]
-    : null;
+  const canViewProfile = can("school_profile.view") || can("school_profile.manage");
+  const canViewYears = can("school_years.view") || can("school_years.manage");
+  const canViewRoles = can("roles.view") || can("roles.manage") || can("users.manage");
+  const canViewPermissions = can("roles.view") || can("roles.manage");
+  const canViewUsers = can("users.view") || can("users.manage");
+  const canViewSettings = can("settings.view") || can("settings.manage");
+  const canViewDocuments = can("documents.view");
+  const canViewAudit = can("audit.view");
 
-  const schoolYears = can("school_years.view") || can("school_years.manage")
-    ? (
-        await query(
+  const [
+    profileResult,
+    schoolYearsResult,
+    rolesResult,
+    permissionsResult,
+    usersResult,
+    settingsResult,
+    sequencesResult,
+    documentsResult,
+    auditResult,
+  ] = await Promise.all([
+    canViewProfile
+      ? query("select * from school_profile where id=1")
+      : Promise.resolve({ rows: [] }),
+    canViewYears
+      ? query(
           `select y.id,y.name,y.starts_on,y.ends_on,y.status,
              coalesce(json_agg(
                json_build_object(
@@ -69,12 +87,9 @@ export default async function DashboardPage({
            group by y.id
            order by y.starts_on desc`,
         )
-      ).rows
-    : [];
-
-  const roles: RoleRow[] = can("roles.view") || can("roles.manage") || can("users.manage")
-    ? (
-        await query<RoleRow>(
+      : Promise.resolve({ rows: [] }),
+    canViewRoles
+      ? query<RoleRow>(
           `select r.id,r.name,r.description,r.is_system,
              coalesce(array_agg(rp.permission_key order by rp.permission_key)
                filter (where rp.permission_key is not null),'{}') as permissions
@@ -83,18 +98,14 @@ export default async function DashboardPage({
            group by r.id
            order by r.is_system desc,r.name`,
         )
-      ).rows
-    : [];
-
-  const permissions = can("roles.view") || can("roles.manage")
-    ? (await query<{ key: string; description: string }>(
-        "select key,description from permission order by key",
-      )).rows
-    : [];
-
-  const users: UserRow[] = can("users.view") || can("users.manage")
-    ? (
-        await query<UserRow>(
+      : Promise.resolve({ rows: [] as RoleRow[] }),
+    canViewPermissions
+      ? query<{ key: string; description: string }>(
+          "select key,description from permission order by key",
+        )
+      : Promise.resolve({ rows: [] as { key: string; description: string }[] }),
+    canViewUsers
+      ? query<UserRow>(
           `select u.id,u.email,u.full_name,u.status,u.last_login_at,
              coalesce(json_agg(
                json_build_object('id',r.id,'name',r.name) order by r.name
@@ -105,25 +116,21 @@ export default async function DashboardPage({
            group by u.id
            order by u.full_name,u.email`,
         )
-      ).rows
-    : [];
-
-  const settings = can("settings.view") || can("settings.manage")
-    ? (await query<{ key: string; value: unknown }>(
-        "select key,value from app_setting order by key",
-      )).rows
-    : [];
-  const setting = new Map(settings.map((row) => [row.key, row.value]));
-
-  const sequences = can("settings.view") || can("settings.manage")
-    ? (await query<{ document_type: string; prefix: string; next_number: string }>(
-        "select document_type,prefix,next_number from document_sequence order by document_type",
-      )).rows
-    : [];
-
-  const documents = can("documents.view")
-    ? (
-        await query<{
+      : Promise.resolve({ rows: [] as UserRow[] }),
+    canViewSettings
+      ? query<{ key: string; value: unknown }>(
+          "select key,value from app_setting order by key",
+        )
+      : Promise.resolve({ rows: [] as { key: string; value: unknown }[] }),
+    canViewSettings
+      ? query<{ document_type: string; prefix: string; next_number: string }>(
+          "select document_type,prefix,next_number from document_sequence order by document_type",
+        )
+      : Promise.resolve({
+          rows: [] as { document_type: string; prefix: string; next_number: string }[],
+        }),
+    canViewDocuments
+      ? query<{
           id: string;
           original_name: string;
           mime_type: string;
@@ -137,12 +144,18 @@ export default async function DashboardPage({
            left join app_user u on u.id=d.uploaded_by
            order by d.uploaded_at desc limit 30`,
         )
-      ).rows
-    : [];
-
-  const auditRows = can("audit.view")
-    ? (
-        await query<{
+      : Promise.resolve({
+          rows: [] as {
+            id: string;
+            original_name: string;
+            mime_type: string;
+            size_bytes: string;
+            uploaded_at: Date;
+            uploaded_by_name: string | null;
+          }[],
+        }),
+    canViewAudit
+      ? query<{
           id: string;
           occurred_at: Date;
           action: string;
@@ -156,8 +169,28 @@ export default async function DashboardPage({
            left join app_user u on u.id=a.actor_user_id
            order by a.occurred_at desc limit 50`,
         )
-      ).rows
-    : [];
+      : Promise.resolve({
+          rows: [] as {
+            id: string;
+            occurred_at: Date;
+            action: string;
+            entity_type: string;
+            entity_id: string | null;
+            actor_name: string | null;
+          }[],
+        }),
+  ]);
+
+  const profile = profileResult.rows[0] ?? null;
+  const schoolYears = schoolYearsResult.rows;
+  const roles: RoleRow[] = rolesResult.rows;
+  const permissions = permissionsResult.rows;
+  const users: UserRow[] = usersResult.rows;
+  const settings = settingsResult.rows;
+  const setting = new Map(settings.map((row) => [row.key, row.value]));
+  const sequences = sequencesResult.rows;
+  const documents = documentsResult.rows;
+  const auditRows = auditResult.rows;
 
   const prefix = (type: string) =>
     sequences.find((row) => row.document_type === type)?.prefix ?? "";
