@@ -6,7 +6,8 @@ values
   ('Reception','Front-desk student, enrollment and parent-payment workflow.',true),
   ('Teacher','Classroom-focused student information without financial administration.',true),
   ('Accounting','Daily finance plus advanced accounting, banking, supplier and reporting controls.',true),
-  ('Payroll Manager','Employee, salary advance and payroll workflow without general accounting administration.',true)
+  ('Payroll Manager','Employee, salary advance and payroll workflow without general accounting administration.',true),
+  ('Food Manager','Student food plans, packages, purchasing, inventory and stock posting.',true)
 on conflict (lower(name)) do nothing;
 
 with desired(role_name,permission_key) as (
@@ -80,7 +81,19 @@ with desired(role_name,permission_key) as (
     ('Payroll Manager','payroll.lock'),
     ('Payroll Manager','payroll.pay'),
     ('Payroll Manager','salary_advances.manage'),
-    ('Payroll Manager','banking.view')
+    ('Payroll Manager','banking.view'),
+
+    ('Food Manager','dashboard.view'),
+    ('Food Manager','food.view'),
+    ('Food Manager','food.manage'),
+    ('Food Manager','food.billing'),
+    ('Food Manager','food.payments'),
+    ('Food Manager','inventory.view'),
+    ('Food Manager','inventory.manage'),
+    ('Food Manager','inventory.purchase'),
+    ('Food Manager','inventory.post'),
+    ('Food Manager','inventory.adjust'),
+    ('Food Manager','suppliers.view')
 )
 insert into role_permission(role_id,permission_key)
 select r.id,p.key
