@@ -26,14 +26,12 @@ with desired(role_name,permission_key) as (
     ('Reception','billing.view'),
     ('Reception','payments.view'),
     ('Reception','payments.manage'),
-    ('Reception','food.view'),
 
     ('Teacher','dashboard.view'),
     ('Teacher','students.view'),
     ('Teacher','classes.view'),
     ('Teacher','enrollments.view'),
     ('Teacher','student_history.view'),
-    ('Teacher','food.view'),
 
     ('Accounting','dashboard.view'),
     ('Accounting','billing.view'),
