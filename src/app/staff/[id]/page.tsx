@@ -48,7 +48,7 @@ export default async function EmployeePage({
     can("payroll.view")?query<Row>("select * from employee_payroll_ledger where employee_id=$1 order by event_date desc,ledger_key desc limit 100",[id]):Promise.resolve({rows:[] as Row[]}),
   ]);
   const jobs=jobsR.rows,salaryHistory=salaryR.rows,advances=advancesR.rows,schedules=schedulesR.rows,payrollItems=payrollR.rows,cash=cashR.rows,ledger=ledgerR.rows;
-  const currentSalary=salaryHistory[0]??null;
+  const currentSalary=salaryHistory.find((s)=>iso(s.effective_from)<=today&&(!s.effective_to||iso(s.effective_to)>=today))??null;
   const currentPayroll=payrollItems.find((p)=>p.run_status!=="paid")??payrollItems[0]??null;
   const outstandingAdvance=advances.filter((a)=>a.status==="posted").reduce((sum,a)=>sum+Number(a.outstanding_amount??0),0);
   const returnTo=`/staff/${id}`;
@@ -89,7 +89,7 @@ export default async function EmployeePage({
 
     <section className="panel section-block" id="advances">
       <div className="section-heading"><div><p className="eyebrow">Advances</p><h2>Salary advances</h2><p className="muted">Repayment installments are automatically recovered when payroll is locked.</p></div></div>
-      {can("salary_advances.manage")&&employee.status!=="inactive"?<form action={createSalaryAdvanceAction} className="simple-money-form">
+      {can("salary_advances.manage")&&employee.status==="active"?<form action={createSalaryAdvanceAction} className="simple-money-form">
         <input type="hidden" name="return_to" value={returnTo}/><input type="hidden" name="employee_id" value={id}/>
         <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required/></label><label>Currency<input name="currency" defaultValue={currentSalary?.currency||currencySetting} maxLength={3} required/></label>
         <label>Pay from<select name="payment_account_id" defaultValue="" required><option value="" disabled>Select cash/bank</option>{cash.map((c)=><option key={c.account_id} value={c.account_id}>{c.display_name} · {money(c.balance,c.currency)}</option>)}</select></label>
