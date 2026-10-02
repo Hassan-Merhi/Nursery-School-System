@@ -260,7 +260,7 @@ export default async function DashboardPage() {
       eyebrow: "Food",
       title: "Buy food stock",
       description: "Review or create food purchases and receiving work.",
-      show: any(["inventory.purchase","inventory.view"]),
+      show: can("inventory.purchase"),
       profiles: ["administrator","food","accounting"],
     },
     {
