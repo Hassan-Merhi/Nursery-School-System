@@ -30,7 +30,7 @@ export default async function EmployeePage({
   const employee=(await query<Row>("select e.*,j.name job_title from employee e left join job_title j on j.id=e.job_title_id where e.id=$1",[id])).rows[0];
   if(!employee)notFound();
 
-  const [jobsR,salaryR,advancesR,schedulesR,payrollR,cashR,ledgerR]=await Promise.all([
+  const [jobsR,salaryR,advancesR,schedulesR,payrollR,cashR,ledgerR,documentsR]=await Promise.all([
     can("employees.manage")?query<Row>("select * from job_title order by status,name"):Promise.resolve({rows:[] as Row[]}),
     query<Row>("select * from employee_salary_history where employee_id=$1 order by effective_from desc",[id]),
     query<Row>("select b.*,c.display_name payment_account_name from salary_advance_balance b join salary_advance a on a.id=b.id join cash_bank_account c on c.account_id=a.payment_account_id where b.employee_id=$1 order by b.advance_date desc",[id]),
@@ -46,18 +46,19 @@ export default async function EmployeePage({
     ),
     can("salary_advances.manage")?query<Row>("select * from cash_bank_balance where is_active=true order by account_kind,display_name"):Promise.resolve({rows:[] as Row[]}),
     can("payroll.view")?query<Row>("select * from employee_payroll_ledger where employee_id=$1 order by event_date desc,ledger_key desc limit 100",[id]):Promise.resolve({rows:[] as Row[]}),
+    can("notifications.view")?query<Row>("select id,document_name,document_number,expires_on::text,status,notes from employee_document_expiry where employee_id=$1 order by case status when 'active' then 1 else 2 end,expires_on",[id]):Promise.resolve({rows:[] as Row[]}),
   ]);
-  const jobs=jobsR.rows,salaryHistory=salaryR.rows,advances=advancesR.rows,schedules=schedulesR.rows,payrollItems=payrollR.rows,cash=cashR.rows,ledger=ledgerR.rows;
+  const jobs=jobsR.rows,salaryHistory=salaryR.rows,advances=advancesR.rows,schedules=schedulesR.rows,payrollItems=payrollR.rows,cash=cashR.rows,ledger=ledgerR.rows,documents=documentsR.rows;
   const currentSalary=salaryHistory.find((s)=>iso(s.effective_from)<=today&&(!s.effective_to||iso(s.effective_to)>=today))??null;
   const currentPayroll=payrollItems.find((p)=>p.run_status!=="paid")??payrollItems[0]??null;
   const outstandingAdvance=advances.filter((a)=>a.status==="posted").reduce((sum,a)=>sum+Number(a.outstanding_amount??0),0);
   const returnTo=`/staff/${id}`;
 
   return <main className="app-shell employee-profile-shell">
-    <header className="topbar"><div><p className="eyebrow">Employee profile</p><h1>{employee.first_name} {employee.last_name}</h1><p className="muted">{employee.employee_number} · {employee.job_title||"No job title"} · started {iso(employee.start_on)}</p></div><div className="top-actions"><Link className="button-link secondary-link" href="/staff">All staff</Link>{can("payroll.view")||can("payroll.manage")?<Link className="button-link secondary-link" href="/payroll">Advanced payroll</Link>:null}</div></header>
+    <header className="topbar"><div><p className="eyebrow">Employee profile</p><h1>{employee.first_name} {employee.last_name}</h1><p className="muted">{employee.employee_number} · {employee.job_title||"No job title"} · started {iso(employee.start_on)}</p></div><div className="top-actions"><Link className="button-link secondary-link" href="/staff">All staff</Link>{can("payroll.view")||can("payroll.manage")?<Link className="button-link secondary-link" href="/staff?view=payroll">Payroll</Link>:null}</div></header>
     {error?<div className="notice error">{error}</div>:null}{success?<div className="notice success">{success}</div>:null}
 
-    <nav className="family-hub-nav no-print" aria-label="Employee sections"><a href="#salary">Salary</a><a href="#advances">Advances</a><a href="#payroll">Current payroll</a><a href="#history">History</a></nav>
+    <nav className="family-hub-nav no-print" aria-label="Employee sections"><a href="#salary">Salary</a><a href="#advances">Advances</a><a href="#payroll">Current payroll</a>{can("notifications.view")?<a href="#documents">Documents</a>:null}<a href="#history">History</a></nav>
 
     <section className="money-summary-grid">
       <article className="panel"><p className="eyebrow">Status</p><h2>{title(employee.status)}</h2><p className="muted">{employee.phone||employee.email||"No contact details."}</p></article>
@@ -100,9 +101,14 @@ export default async function EmployeePage({
     </section>
 
     <section className="panel section-block" id="payroll">
-      <div className="section-heading"><div><p className="eyebrow">Payroll</p><h2>Current payroll & payslips</h2><p className="muted">The newest payroll is shown first. Locked and paid payroll expose immutable payslips.</p></div>{(can("payroll.manage")||can("payroll.approve")||can("payroll.lock")||can("payroll.pay"))?<Link className="button-link secondary-link" href="/payroll">Manage payroll run</Link>:null}</div>
+      <div className="section-heading"><div><p className="eyebrow">Payroll</p><h2>Current payroll & payslips</h2><p className="muted">The newest payroll is shown first. Locked and paid payroll expose immutable payslips.</p></div>{(can("payroll.manage")||can("payroll.approve")||can("payroll.lock")||can("payroll.pay"))?<Link className="button-link secondary-link" href="/staff?view=payroll">Manage payroll run</Link>:null}</div>
       {payrollItems.length?<div className="card-list">{payrollItems.map((p,index)=><article className={index===0?"subcard employee-current-payroll":"subcard"} key={p.id}><div className="row-between"><div><strong>{p.run_number} · {iso(p.period_start)} → {iso(p.period_end)}</strong><div className="muted">Pay date {iso(p.pay_date)}</div></div><span className="badge">{p.run_status}</span></div><div className="record-grid"><div><small>Base salary</small><strong>{money(p.base_salary,p.currency)}</strong></div><div><small>Gross</small><strong>{money(p.gross_pay,p.currency)}</strong></div><div><small>Advance repayments</small><strong>{money(p.advance_repayment_total,p.currency)}</strong></div><div><small>Net pay</small><strong>{money(p.net_pay,p.currency)}</strong></div></div>{["locked","paid"].includes(p.run_status)&&can("payroll.view")?<Link className="button-link" href={`/payroll/payslips/${p.id}`}>Open payslip</Link>:null}{index===0&&(p.adjustments as Row[]).length?<details className="hub-details"><summary>Current adjustments</summary>{(p.adjustments as Row[]).map((a)=><p className="compact-text" key={a.id}>{title(a.type)} · {a.description} · {money(a.amount,p.currency)}</p>)}</details>:null}</article>)}</div>:<p className="muted">This employee has not been included in a payroll run yet.</p>}
     </section>
+
+    {can("notifications.view")?<section className="panel section-block" id="documents">
+      <div className="section-heading"><div><p className="eyebrow">Documents</p><h2>Document expiry</h2><p className="muted">Residence permits, certificates and other dated documents. Expiry reminders appear under Home → Alerts.</p></div>{can("notifications.manage")?<Link className="button-link secondary-link" href="/dashboard?view=alerts#document-expiry">Add or update</Link>:null}</div>
+      {documents.length?<div className="responsive-card-table"><table><thead><tr><th>Document</th><th>Number</th><th>Expires</th><th>Status</th></tr></thead><tbody>{documents.map((d)=>{const expired=d.status==="active"&&iso(d.expires_on)<today;return <tr key={d.id}><td data-label="Document">{d.document_name}{d.notes?<small>{d.notes}</small>:null}</td><td data-label="Number">{d.document_number||"—"}</td><td data-label="Expires">{iso(d.expires_on)}</td><td data-label="Status">{expired?<span className="badge badge-warning">Expired</span>:<span className="badge">{d.status}</span>}</td></tr>;})}</tbody></table></div>:<p className="muted">No tracked documents for this employee.</p>}
+    </section>:null}
 
     {can("payroll.view")?<section className="panel section-block" id="history">
       <div className="section-heading"><div><p className="eyebrow">Secondary detail</p><h2>Payroll accounting history</h2><p className="muted">Detailed ledger history is kept available without making it the main employee workflow.</p></div></div>

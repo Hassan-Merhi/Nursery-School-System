@@ -2,6 +2,22 @@
 
 Management system for Montikids Montessori Preschool & Nursery.
 
+## Navigation — one page per workspace
+
+The app has seven top-level pages. Each one is a single page with a row of buttons that swaps the content below it, so there are no separate sub-pages to hunt for. Buttons only appear when the signed-in role can use them.
+
+| Page | Buttons |
+| --- | --- |
+| Home `/dashboard` | Overview · Alerts (notification center, rules, employee document expiry) |
+| Students `/students` | Directory · Enroll a child · Classroom |
+| Money `/money` | Overview · Payments · Fees & invoices · Expenses & suppliers · Rent · Accounting |
+| Staff `/staff` | Employees · Payroll |
+| Food `/food` | Overview · Student plans · Packages & billing · Purchases · Inventory |
+| Reports `/reports` | Overview · Financial · School · Payroll · Documents · Analytics |
+| Settings `/settings` | School · Users & roles · System · My account |
+
+Record pages (family, employee, classroom student, receipt, payslip and printable documents) open from those hubs. Every button is a plain link (`?view=…`), so refresh, back and bookmarks keep working, and forms return to the button they were submitted from. Old URLs such as `/billing`, `/accounting`, `/payroll`, `/inventory`, `/analytics` and `/notifications` redirect to the matching button and keep their query string.
+
 ## Step 1 — Foundation & Security
 
 Implemented:

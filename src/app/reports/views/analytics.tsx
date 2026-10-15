@@ -1,6 +1,7 @@
-import { requirePermission } from "@/lib/security";
+import { redirect } from "next/navigation";
+import type { ViewProps } from "@/components/hub";
 import { loadAnalytics,resolveAnalyticsPeriod,type AnalyticsSearch } from "@/lib/analytics";
-import { EmptyState,MetricCard,MiniBars,MoneyStack,money,monthLabel,percent,signed } from "./components";
+import { EmptyState,MetricCard,MiniBars,MoneyStack,money,monthLabel,percent,signed } from "./analytics-components";
 
 function rowsForCurrency<T extends {currency:string}>(rows:T[],currency:string){return rows.filter((row)=>row.currency===currency);}
 function uniqueExpenseAccounts(rows:Awaited<ReturnType<typeof loadAnalytics>>["expenses"]){
@@ -15,9 +16,9 @@ function displayYoy(row:Awaited<ReturnType<typeof loadAnalytics>>["yearOverYear"
   return String(Math.round(value));
 }
 
-export default async function AnalyticsPage({searchParams}:{searchParams:Promise<AnalyticsSearch>}){
-  await requirePermission("analytics.view");
-  const period=await resolveAnalyticsPeriod(await searchParams);
+export async function AnalyticsView({ auth, params }: ViewProps){
+  if(!auth.permissions.includes("analytics.view"))redirect("/forbidden");
+  const period=await resolveAnalyticsPeriod(params as AnalyticsSearch);
   const data=await loadAnalytics(period);
   const selectedYear=period.years.find((year)=>year.id===period.selectedYearId)??null;
   const currencies=[...new Set([
@@ -30,21 +31,11 @@ export default async function AnalyticsPage({searchParams}:{searchParams:Promise
   const expenseAccounts=uniqueExpenseAccounts(data.expenses);
   const priorRange=data.yearOverYear[0];
 
-  return <main className="app-shell analytics-shell">
-    <header className="topbar">
-      <div>
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-        <h1>Advanced Dashboard & Analysis</h1>
-        <p className="muted">Read-only management analytics from posted accounting and historical operational records.</p>
-      </div>
-      <div className="top-actions no-print">
-        <a className="button-link secondary-link" href="/reports">Management & reports</a>
-        <a className="button-link secondary-link" href="/dashboard">Administration</a>
-      </div>
-    </header>
+  return <div className="hub-view analytics-shell">
 
     <section className="panel analytics-filter no-print">
-      <form method="get" action="/analytics" className="analytics-filter-grid">
+      <form method="get" action="/reports" className="analytics-filter-grid">
+        <input type="hidden" name="view" value="analytics"/>
         <label>View
           <select name="mode" defaultValue={period.mode}>
             <option value="year">School year</option><option value="term">Term</option><option value="custom">Custom range</option>
@@ -150,5 +141,5 @@ export default async function AnalyticsPage({searchParams}:{searchParams:Promise
       <div className="section-heading"><div><p className="eyebrow">10 · Year-over-year comparisons</p><h2>Current versus comparable prior period</h2><p className="muted">{priorRange?period.from+" → "+period.to+" compared with "+priorRange.priorFrom+" → "+priorRange.priorTo:"No comparable period."}</p></div></div>
       {!data.yearOverYear.length?<EmptyState/>:<div className="table-wrap"><table><thead><tr><th>Metric</th><th>Currency</th><th>Current</th><th>Prior</th><th>Absolute change</th><th>% change</th></tr></thead><tbody>{data.yearOverYear.map((row)=><tr key={row.metricKey+":"+(row.currency??"count")}><td>{row.metricLabel}</td><td>{row.currency??"—"}</td><td>{displayYoy(row,row.currentValue)}</td><td>{displayYoy(row,row.priorValue)}</td><td>{row.changeValue===null?"—":row.unit==="money"?money(row.changeValue,row.currency??"USD"):row.unit==="percent"?signed(row.changeValue," pp"):signed(row.changeValue)}</td><td>{row.changePercent===null?"No prior base":signed(row.changePercent,"%")}</td></tr>)}</tbody></table></div>}
     </section>
-  </main>;
+  </div>;
 }

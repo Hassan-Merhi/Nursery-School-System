@@ -10,11 +10,10 @@ const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-function bad(m:string):never{redirect("/notifications?error="+encodeURIComponent(m));}
+function bad(m:string):never{redirect("/dashboard?view=alerts&error="+encodeURIComponent(m));}
 function good(m:string):never{
-  revalidatePath("/notifications");
   revalidatePath("/dashboard");
-  redirect("/notifications?success="+encodeURIComponent(m));
+  redirect("/dashboard?view=alerts&success="+encodeURIComponent(m));
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
 function day(raw:string,label:string){

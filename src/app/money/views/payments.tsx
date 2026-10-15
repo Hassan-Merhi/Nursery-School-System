@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 
 type Row = Record<string, any>;
 type MoneyValue = [string, number];
@@ -51,21 +51,11 @@ function MoneyStack({ values }: { values: MoneyValue[] }) {
   return <span className="money-stack">{values.map(([currency, amount]) => <span key={currency}>{money(amount, currency)}</span>)}</span>;
 }
 
-export default async function BillingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const auth = await requireUser();
-  const params = await searchParams;
+export async function PaymentsView({ auth, params }: ViewProps) {
   const can = (permission: string) => auth.permissions.includes(permission);
   const canFamilyWorkflow = ["billing.view","billing.manage","payments.view","payments.manage"].some(can);
-  const canAdvanced = ["billing.manage","discounts.view","discounts.manage","discounts.approve"].some(can);
   const canFoodBalance = ["food.view","food.manage","food.billing","food.payments"].some(can);
-  if (!canFamilyWorkflow) {
-    if (canAdvanced) redirect("/billing/admin");
-    redirect("/forbidden");
-  }
+  if (!canFamilyWorkflow) redirect("/forbidden");
 
   const q = String(params.q ?? "").trim();
   const families = (
@@ -124,24 +114,21 @@ export default async function BillingPage({
   const funds = groupMoney(fundsRows.rows, "amount");
 
   return (
-    <main className="app-shell billing-simple-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Fees & payments</p>
-          <h1>Start with the family</h1>
-          <p className="muted">Find the family, review what they owe, record the payment, choose cash or bank, save, then issue the receipt. Allocations and accounting stay in the background.</p>
-        </div>
-        {canAdvanced ? <Link className="button-link secondary-link" href="/billing/admin">Advanced billing</Link> : null}
-      </header>
+    <div className="hub-view billing-simple-shell">
+      <div className="hub-intro">
+        <h2>Start with the family</h2>
+        <p className="muted">Find the family, review what they owe, record the payment, choose cash or bank, save, then print the receipt. Allocations and accounting stay in the background.</p>
+      </div>
 
       <section className="panel billing-family-finder">
-        <form method="get" action="/billing" className="billing-search-form">
+        <form method="get" action="/money" className="billing-search-form">
+          <input type="hidden" name="view" value="payments" />
           <label>
             Find family or student
             <input name="q" defaultValue={q} placeholder="Family name, family number, student name or student number" autoFocus />
           </label>
           <button type="submit">Find family</button>
-          {q ? <Link className="button-link secondary-link" href="/billing">Clear</Link> : null}
+          {q ? <Link className="button-link secondary-link" href="/money?view=payments">Clear</Link> : null}
         </form>
       </section>
 
@@ -175,6 +162,6 @@ export default async function BillingPage({
         })}
         {!families.length ? <section className="panel"><h2>No matching family</h2><p className="muted">Try a family name, family number, student name, or student number.</p></section> : null}
       </section>
-    </main>
+    </div>
   );
 }

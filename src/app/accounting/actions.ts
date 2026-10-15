@@ -16,12 +16,13 @@ function value(formData: FormData, key: string) {
 }
 
 function fail(message: string): never {
-  redirect(`/accounting?error=${encodeURIComponent(message)}`);
+  redirect(`/money?view=accounting&error=${encodeURIComponent(message)}`);
 }
 
 function success(message: string): never {
-  revalidatePath("/accounting");
-  redirect(`/accounting?success=${encodeURIComponent(message)}`);
+  revalidatePath("/money");
+  revalidatePath("/dashboard");
+  redirect(`/money?view=accounting&success=${encodeURIComponent(message)}`);
 }
 
 function requireUuid(raw: string, label: string) {

@@ -8,13 +8,13 @@ const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 const MONEY_RE=/^\d+(?:\.\d{1,2})?$/;
 
 export function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-export function bad(m:string):never{redirect("/payroll?error="+encodeURIComponent(m));}
+export function bad(m:string):never{redirect("/staff?view=payroll&error="+encodeURIComponent(m));}
 export function good(m:string,d?:FormData):never{
-  revalidatePath("/payroll");revalidatePath("/staff");revalidatePath("/accounting");revalidatePath("/operations");revalidatePath("/dashboard");
+  revalidatePath("/staff");revalidatePath("/money");revalidatePath("/dashboard");
   const returnTo=d?String(d.get("return_to")??"").trim():"";
   if(/^\/staff\/[0-9a-f-]{36}$/i.test(returnTo)){revalidatePath(returnTo);redirect(returnTo+"?success="+encodeURIComponent(m));}
   if(returnTo==="/staff"){redirect("/staff?success="+encodeURIComponent(m));}
-  redirect("/payroll?success="+encodeURIComponent(m));
+  redirect("/staff?view=payroll&success="+encodeURIComponent(m));
 }
 export function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
 export function oid(raw:string,label:string){return raw?id(raw,label):null;}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import { deriveUiProfile } from "@/lib/ui-profile";
 
 type Row=Record<string,any>;
@@ -15,16 +15,11 @@ function yearsOld(dob:unknown,today:string){
   return Math.max(0,years);
 }
 
-export default async function ClassroomPage({
-  searchParams,
-}:{
-  searchParams:Promise<{class_id?:string;q?:string}>;
-}){
-  const auth=await requireUser();
+export async function ClassroomView({ auth, params }: ViewProps){
   const can=(p:string)=>auth.permissions.includes(p);
   if(!can("students.view")&&!can("classes.view")&&!can("enrollments.view"))redirect("/forbidden");
   const profile=deriveUiProfile(auth.permissions,auth.roles);
-  const {class_id="",q=""}=await searchParams;
+  const class_id=params.class_id??"",q=params.q??"";
   const today=(await query<{today:string}>("select (now() at time zone 'Asia/Beirut')::date::text today")).rows[0]?.today??new Date().toISOString().slice(0,10);
 
   const currentYear=(await query<Row>("select id,name from school_year where status='current' order by starts_on desc limit 1")).rows[0]??null;
@@ -68,22 +63,16 @@ export default async function ClassroomPage({
     ],
   )).rows:[];
 
-  return <main className="app-shell classroom-shell">
-    <header className="topbar">
-      <div>
-        <p className="eyebrow">{profile.kind==="teacher"?"Teacher workspace":"Classroom"}</p>
-        <h1>Classroom roster</h1>
-        <p className="muted">{currentYear?.name??"No current school year"} · student information only. Financial and administrative details are intentionally excluded.</p>
-      </div>
-      {profile.kind!=="teacher"&&can("students.manage")?<Link className="button-link secondary-link" href="/students">Full student administration</Link>:null}
-    </header>
+  return <div className="hub-view classroom-shell">
+    <p className="muted">{currentYear?.name??"No current school year"} · student information only. Financial and administrative details are intentionally excluded.</p>
 
     {profile.kind==="teacher"&&!assigned.length?<div className="notice">
       No active class is assigned to your account. Ask an administrator to set the class lead teacher to your signed-in name before student records become visible here.
     </div>:null}
 
     <section className="panel classroom-filter">
-      <form method="get" action="/classroom" className="billing-search-form">
+      <form method="get" action="/students" className="billing-search-form">
+        <input type="hidden" name="view" value="classroom"/>
         <label>Class<select name="class_id" defaultValue={selectedClass}><option value="">All permitted classes</option>{visibleClasses.map((c)=><option key={c.id} value={c.id}>{c.name}{c.room?` · ${c.room}`:""}</option>)}</select></label>
         <label>Find student<input name="q" defaultValue={q} placeholder="Name or student number"/></label>
         <button type="submit">Show roster</button>
@@ -109,5 +98,5 @@ export default async function ClassroomPage({
       </Link>)}
       {!rows.length?<section className="panel empty-state"><strong>No students match this view</strong><span>Change the class or search filter.</span></section>:null}
     </section>
-  </main>;
+  </div>;
 }

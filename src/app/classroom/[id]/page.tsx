@@ -27,7 +27,7 @@ export default async function ClassroomStudentPage({params}:{params:Promise<{id:
     [id],
   )).rows[0];
   if(!student)notFound();
-  if(profile.kind==="teacher"&&String(student.lead_teacher??"").trim().toLowerCase()!==auth.fullName.trim().toLowerCase())redirect("/classroom");
+  if(profile.kind==="teacher"&&String(student.lead_teacher??"").trim().toLowerCase()!==auth.fullName.trim().toLowerCase())redirect("/students?view=classroom");
 
   const [foodR,historyR,contactsR]=await Promise.all([
     can("food.view")?query<Row>(
@@ -44,7 +44,7 @@ export default async function ClassroomStudentPage({params}:{params:Promise<{id:
   ]);
 
   return <main className="app-shell classroom-shell">
-    <header className="topbar"><div><p className="eyebrow">Classroom student</p><h1>{student.preferred_name||student.first_name} {student.last_name}</h1><p className="muted">{student.student_number} · {student.class_name||"No active class"}{student.room?` · ${student.room}`:""}</p></div><Link className="button-link secondary-link" href="/classroom">Back to classroom</Link></header>
+    <header className="topbar"><div><p className="eyebrow">Classroom student</p><h1>{student.preferred_name||student.first_name} {student.last_name}</h1><p className="muted">{student.student_number} · {student.class_name||"No active class"}{student.room?` · ${student.room}`:""}</p></div><Link className="button-link secondary-link" href="/students?view=classroom">Back to classroom</Link></header>
     <section className="panel"><div className="record-grid"><div><small>Date of birth</small><strong>{iso(student.date_of_birth)}</strong></div><div><small>Status</small><strong>{student.status}</strong></div><div><small>School year</small><strong>{student.year_name||"—"}</strong></div><div><small>Terms</small><strong>{student.terms||"—"}</strong></div><div><small>Admission date</small><strong>{student.admission_date?iso(student.admission_date):"—"}</strong></div><div><small>Lead teacher</small><strong>{student.lead_teacher||"—"}</strong></div></div></section>
     {contactsR.rows.length?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Safety</p><h2>Emergency contacts</h2></div></div><div className="money-list">{contactsR.rows.map((c,i)=><article className="money-list-row" key={i}><div><strong>#{c.priority} {c.full_name}</strong><small>{c.relationship}</small></div><strong>{c.phone}</strong></article>)}</div></section>:null}
     {foodR.rows.length?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Food</p><h2>Food plans</h2></div></div><div className="money-list">{foodR.rows.map((f,i)=><article className="money-list-row" key={i}><div><strong>{f.name}</strong><small>{f.package_kind} · {iso(f.starts_on)} → {iso(f.ends_on)}</small></div><span className="badge">{f.status}</span></article>)}</div></section>:null}

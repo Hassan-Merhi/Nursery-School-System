@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { withTransaction } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/security";
+import { withCurrentView } from "@/lib/hub-redirect";
 
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
@@ -19,11 +20,11 @@ function familyHubReturn(d:FormData){
   const raw=v(d,"return_to");
   return /^\/students\/families\/[0-9a-f-]{36}$/i.test(raw)?raw:null;
 }
-function bad(m:string):never{redirect("/food?error="+encodeURIComponent(m));}
-function good(m:string):never{
-  revalidatePath("/food"); revalidatePath("/billing"); revalidatePath("/accounting");
+function bad(m:string):never{redirect("/food?view=packages&error="+encodeURIComponent(m));}
+async function good(m:string):Promise<never>{
+  revalidatePath("/food"); revalidatePath("/money");
   revalidatePath("/reports"); revalidatePath("/dashboard");
-  redirect("/food?success="+encodeURIComponent(m));
+  redirect(await withCurrentView("/food?success="+encodeURIComponent(m)));
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
 function day(raw:string,label:string){if(!DATE_RE.test(raw)||Number.isNaN(Date.parse(raw+"T00:00:00Z")))bad("Enter a valid "+label+".");return raw;}
@@ -58,7 +59,7 @@ export async function configureFoodIncomeMappingAction(d:FormData){
     await c.query("insert into accounting_mapping(role_key,account_id,updated_by) values ('food_income',$1,$2) on conflict (role_key) do update set account_id=excluded.account_id,updated_at=now(),updated_by=excluded.updated_by",[account,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_income_mapping_updated",entityType:"accounting_mapping",entityId:"food_income",before,after:{roleKey:"food_income",accountId:account}});
   });
-  good("Food income accounting mapping saved.");
+  await good("Food income accounting mapping saved.");
 }
 
 export async function createFoodItemAction(d:FormData){
@@ -69,7 +70,7 @@ export async function createFoodItemAction(d:FormData){
     const r=await c.query<{id:string}>("insert into food_item(code,name,description,created_by,updated_by) values ($1,$2,$3,$4,$4) returning id",[itemCode,name,v(d,"description")||null,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_item_created",entityType:"food_item",entityId:r.rows[0].id,after:{code:itemCode,name}});
   });
-  good("Food item created.");
+  await good("Food item created.");
 }
 
 export async function setFoodItemStatusAction(d:FormData){
@@ -82,7 +83,7 @@ export async function setFoodItemStatusAction(d:FormData){
     await c.query("update food_item set status=$2,updated_at=now(),updated_by=$3 where id=$1",[item,status,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_item_status_changed",entityType:"food_item",entityId:item,before,after:{...before,status}});
   });
-  good("Food item status updated.");
+  await good("Food item status updated.");
 }
 
 export async function addFoodItemPriceAction(d:FormData){
@@ -95,7 +96,7 @@ export async function addFoodItemPriceAction(d:FormData){
     const r=await c.query<{id:string}>("insert into food_item_price(food_item_id,amount,currency,effective_from,effective_to,created_by) values ($1,$2,$3,$4,$5,$6) returning id",[item,amount,currency,from,to,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_item_price_created",entityType:"food_item_price",entityId:r.rows[0].id,after:{foodItemId:item,amount,currency,effectiveFrom:from,effectiveTo:to}});
   });
-  good("Food item price added.");
+  await good("Food item price added.");
 }
 
 export async function createFoodPackageAction(d:FormData){
@@ -115,7 +116,7 @@ export async function createFoodPackageAction(d:FormData){
     const r=await c.query<{id:string}>("insert into food_package(school_year_id,term_id,code,name,package_kind,package_price,currency,available_from,available_to,notes,created_by,updated_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11) returning id",[t.school_year_id,term,packageCode,name,kind,price,currency,from,to,v(d,"notes")||null,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_package_created",entityType:"food_package",entityId:r.rows[0].id,after:{code:packageCode,name,kind,price,currency,termId:term}});
   });
-  good("Food package created as draft.");
+  await good("Food package created as draft.");
 }
 
 export async function addFoodPackageItemAction(d:FormData){
@@ -125,7 +126,7 @@ export async function addFoodPackageItemAction(d:FormData){
     await c.query("insert into food_package_item(food_package_id,food_item_id,quantity,created_by) values ($1,$2,$3,$4) on conflict (food_package_id,food_item_id) do update set quantity=excluded.quantity",[pack,item,quantity,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_package_item_saved",entityType:"food_package",entityId:pack,after:{foodItemId:item,quantity}});
   });
-  good("Package item saved.");
+  await good("Package item saved.");
 }
 
 export async function removeFoodPackageItemAction(d:FormData){
@@ -135,7 +136,7 @@ export async function removeFoodPackageItemAction(d:FormData){
     await c.query("delete from food_package_item where food_package_id=$1 and food_item_id=$2",[pack,item]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_package_item_removed",entityType:"food_package",entityId:pack,after:{foodItemId:item}});
   });
-  good("Package item removed.");
+  await good("Package item removed.");
 }
 
 export async function activateFoodPackageAction(d:FormData){
@@ -147,7 +148,7 @@ export async function activateFoodPackageAction(d:FormData){
     await c.query("update food_package set status='active',activated_by=$2,updated_at=now(),updated_by=$2 where id=$1",[pack,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_package_activated",entityType:"food_package",entityId:pack,before,after:{...before,status:"active"}});
   });
-  good("Food package activated.");
+  await good("Food package activated.");
 }
 
 export async function archiveFoodPackageAction(d:FormData){
@@ -160,7 +161,7 @@ export async function archiveFoodPackageAction(d:FormData){
     await c.query("update food_package set status='archived',updated_at=now(),updated_by=$2 where id=$1",[pack,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_package_archived",entityType:"food_package",entityId:pack,before,after:{...before,status:"archived"}});
   });
-  good("Food package archived. Existing selections and bills remain intact.");
+  await good("Food package archived. Existing selections and bills remain intact.");
 }
 
 export async function createFoodSelectionAction(d:FormData){
@@ -179,7 +180,7 @@ export async function createFoodSelectionAction(d:FormData){
     revalidatePath(returnTo);
     redirect(returnTo+"?success="+encodeURIComponent("Student food selection created with the package price snapshotted.")+"#food");
   }
-  good("Student food selection created with the package price snapshotted.");
+  await good("Student food selection created with the package price snapshotted.");
 }
 
 export async function closeFoodSelectionAction(d:FormData){
@@ -198,7 +199,7 @@ export async function closeFoodSelectionAction(d:FormData){
     revalidatePath(returnTo);
     redirect(returnTo+"?success="+encodeURIComponent(message)+"#food");
   }
-  good(status==="cancelled"?"Food selection cancelled.":"Food selection ended.");
+  await good(status==="cancelled"?"Food selection cancelled.":"Food selection ended.");
 }
 
 export async function createFoodBillAction(d:FormData){
@@ -218,7 +219,7 @@ export async function createFoodBillAction(d:FormData){
     await c.query("insert into food_bill_line(food_bill_id,description,package_kind,quantity,unit_price,created_by) values ($1,$2,$3,$4,$5,$6)",[billId,s.package_name,s.package_kind,billedQuantity,s.unit_price,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_bill_created",entityType:"food_bill",entityId:billId,after:{billNumber:number,selectionId:selection,periodStart:start,periodEnd:end,units,billedQuantity,unitPrice:s.unit_price}});
   });
-  good("Draft food bill created.");
+  await good("Draft food bill created.");
 }
 
 export async function issueFoodBillAction(d:FormData){
@@ -230,7 +231,7 @@ export async function issueFoodBillAction(d:FormData){
     await c.query("select issue_food_bill($1,$2,$3)",[bill,issuedOn,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_bill_issued",entityType:"food_bill",entityId:bill,before,after:{...before,status:"issued",issuedOn}});
   });
-  good("Food bill issued and posted to Accounts Receivable and Food Income.");
+  await good("Food bill issued and posted to Accounts Receivable and Food Income.");
 }
 
 export async function voidFoodBillAction(d:FormData){
@@ -243,7 +244,7 @@ export async function voidFoodBillAction(d:FormData){
     await c.query("select void_food_bill($1,$2,$3,$4)",[bill,reversalDate,a.userId,reason]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_bill_voided",entityType:"food_bill",entityId:bill,before,after:{...before,status:"void",reason,reversalDate}});
   });
-  good("Food bill voided with an accounting reversal.");
+  await good("Food bill voided with an accounting reversal.");
 }
 
 export async function recordFoodPaymentAction(d:FormData){
@@ -265,7 +266,7 @@ export async function recordFoodPaymentAction(d:FormData){
     await c.query("select accounting_post_food_payment_allocation($1,$2)",[allocation.rows[0].id,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_payment_recorded",entityType:"payment",entityId:paymentId,after:{receiptNumber:receipt,foodBillId:bill,amount,currency:b.currency,receivedOn}});
   });
-  good("Food payment recorded, allocated and posted. The normal payment receipt is available.");
+  await good("Food payment recorded, allocated and posted. The normal payment receipt is available.");
 }
 
 export async function allocateFoodPaymentAction(d:FormData){
@@ -277,7 +278,7 @@ export async function allocateFoodPaymentAction(d:FormData){
     await c.query("select accounting_post_food_payment_allocation($1,$2)",[r.rows[0].id,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_payment_allocated",entityType:"food_payment_allocation",entityId:r.rows[0].id,after:{paymentId:payment,foodBillId:bill,amount,allocatedOn}});
   });
-  good("Existing parent payment/prepayment allocated to the food bill.");
+  await good("Existing parent payment/prepayment allocated to the food bill.");
 }
 
 export async function allocateFoodCreditAction(d:FormData){
@@ -289,5 +290,5 @@ export async function allocateFoodCreditAction(d:FormData){
     await c.query("select accounting_post_food_credit_allocation($1,$2)",[r.rows[0].id,a.userId]);
     await writeAudit(c,{actorUserId:a.userId,action:"food_credit_allocated",entityType:"food_credit_allocation",entityId:r.rows[0].id,after:{creditNoteId:credit,foodBillId:bill,amount,allocatedOn}});
   });
-  good("Existing family credit allocated to the food bill.");
+  await good("Existing family credit allocated to the food bill.");
 }

@@ -62,17 +62,21 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
     { href: "/dashboard", label: "Home", show: can("dashboard.view") },
     { href: profile.studentHref, label: profile.studentLabel, show: any(groups.students) },
     {
-      href: receptionMode ? "/billing" : profile.moneyHref,
+      href: receptionMode ? "/money?view=payments" : profile.moneyHref,
       label: receptionMode ? "Payments" : profile.moneyLabel,
       show: !teacherMode && any(groups.money),
     },
     { href: "/staff", label: "Staff", show: !teacherMode && canStaffOperations },
     { href: "/food", label: "Food", show: !teacherMode && !receptionMode && (canFood || canInventory) },
-    { href: canReports ? "/reports" : "/analytics", label: "Reports", show: !teacherMode && (canReports || canAnalytics) },
+    { href: canReports ? "/reports" : "/reports?view=analytics", label: "Reports", show: !teacherMode && (canReports || canAnalytics) },
     { href: "/settings", label: canSettings ? "Settings" : "Account", show: true },
   ].filter((item) => item.show);
 
   const homeHref = can("dashboard.view") ? "/dashboard" : items[0]?.href ?? "/settings";
+  const isActive = (href: string) => {
+    const path = href.split("?")[0];
+    return pathname === path || (path !== "/" && pathname.startsWith(path + "/"));
+  };
 
   return (
     <div className="app-navigation-shell no-print">
@@ -88,7 +92,7 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
         <div className="app-navigation-actions">
           <div className="app-navigation-links desktop-navigation-links">
             {items.map((item) => (
-              <Link key={item.href} href={item.href}>{item.label}</Link>
+              <Link key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{item.label}</Link>
             ))}
           </div>
 
@@ -113,7 +117,7 @@ export function AppNavigation({ permissions, roles = [] }: Props) {
             {mobileOpen ? (
               <div className="mobile-navigation-panel" id="mobile-main-navigation">
                 {items.map((item) => (
-                  <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
+                  <Link key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined} onClick={() => setMobileOpen(false)}>
                     {item.label}
                   </Link>
                 ))}
