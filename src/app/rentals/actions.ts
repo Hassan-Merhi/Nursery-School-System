@@ -13,16 +13,13 @@ const MONEY_RE=/^\d+(?:\.\d{1,2})?$/;
 const RENTAL_ROLES=new Set(["rent_expense","prepaid_rent","rent_payable","rent_deposit"]);
 
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-function bad(m:string):never{redirect("/rentals?error="+encodeURIComponent(m));}
+function bad(m:string):never{redirect("/money?view=rent&error="+encodeURIComponent(m));}
 function good(m:string,d?:FormData):never{
-  revalidatePath("/rentals");
   revalidatePath("/money");
-  revalidatePath("/accounting");
-  revalidatePath("/operations");
   revalidatePath("/dashboard");
   const returnTo=d?String(d.get("return_to")??"").trim():"";
   if(returnTo==="/money")redirect("/money?success="+encodeURIComponent(m)+"#rent");
-  redirect("/rentals?success="+encodeURIComponent(m));
+  redirect("/money?view=rent&success="+encodeURIComponent(m));
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
 function day(raw:string,label:string){

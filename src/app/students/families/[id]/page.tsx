@@ -61,7 +61,7 @@ export default async function FamilyHubPage({
 }) {
   const auth = await requireUser();
   const profile = deriveUiProfile(auth.permissions, auth.roles);
-  if (profile.kind === "teacher") redirect("/classroom");
+  if (profile.kind === "teacher") redirect("/students?view=classroom");
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const { error, success } = await searchParams;
@@ -280,7 +280,8 @@ export default async function FamilyHubPage({
         </div>
         <div className="top-actions">
           <Link className="button-link secondary-link" href="/students">All families</Link>
-          {can("billing.manage") || can("payments.manage") ? <Link className="button-link secondary-link" href="/billing/admin">Billing setup</Link> : null}
+          {can("report_documents.view") ? <Link className="button-link secondary-link" href={`/reports/documents/family-statement/${id}`}>Print statement</Link> : null}
+          {can("billing.manage") || can("payments.manage") ? <Link className="button-link secondary-link" href="/money?view=fees">Fees & invoices</Link> : null}
         </div>
       </header>
 
@@ -450,7 +451,7 @@ export default async function FamilyHubPage({
 
         <h3>Invoices</h3>
         <div className="table-wrap"><table><thead><tr><th>Invoice</th><th>Student</th><th>Term</th><th>Due</th><th>Total</th><th>Paid / credit</th><th>Balance</th><th>Status</th></tr></thead><tbody>
-          {invoices.map((invoice) => <tr key={invoice.id}><td>{invoice.invoice_number}<small>{invoice.issued_on ? `Issued ${invoice.issued_on}` : "Draft"}</small></td><td>{invoice.student_name}</td><td>{invoice.year_name} · {invoice.term_name}</td><td>{invoice.due_on ?? "—"}</td><td>{money(invoice.total_amount, invoice.currency)}</td><td>{money(invoice.paid_amount, invoice.currency)} / {money(invoice.credit_amount, invoice.currency)}</td><td><strong>{money(invoice.balance_amount, invoice.currency)}</strong></td><td><span className="badge">{invoice.status}</span></td></tr>)}
+          {invoices.map((invoice) => <tr key={invoice.id}><td>{can("report_documents.view") && invoice.status !== "draft" ? <Link href={`/reports/documents/invoice/${invoice.id}`}>{invoice.invoice_number}</Link> : invoice.invoice_number}<small>{invoice.issued_on ? `Issued ${invoice.issued_on}` : "Draft"}</small></td><td>{invoice.student_name}</td><td>{invoice.year_name} · {invoice.term_name}</td><td>{invoice.due_on ?? "—"}</td><td>{money(invoice.total_amount, invoice.currency)}</td><td>{money(invoice.paid_amount, invoice.currency)} / {money(invoice.credit_amount, invoice.currency)}</td><td><strong>{money(invoice.balance_amount, invoice.currency)}</strong></td><td><span className="badge">{invoice.status}</span></td></tr>)}
           {!invoices.length ? <tr><td colSpan={8}>No invoices yet.</td></tr> : null}
         </tbody></table></div>
 
@@ -464,7 +465,7 @@ export default async function FamilyHubPage({
       </section> : null}
 
       {canFood ? <section className="panel section-block" id="food">
-        <div className="section-heading"><div><p className="eyebrow">Food</p><h2>Food packages & billing</h2><p className="muted">Food activity is visible beside the student account, not hidden in a separate workflow.</p></div>{can("food.manage") ? <Link className="button-link secondary-link" href="/food">Manage food packages</Link> : null}</div>
+        <div className="section-heading"><div><p className="eyebrow">Food</p><h2>Food packages & billing</h2><p className="muted">Food activity is visible beside the student account, not hidden in a separate workflow.</p></div>{can("food.manage") ? <Link className="button-link secondary-link" href="/food?view=packages">Manage food packages</Link> : null}</div>
         {can("food.manage") && foodPackages.length ? <div className="student-document-forms">
           {students.filter((student) => student.status !== "graduated").map((student) => (
             <form action={createFoodSelectionAction} className="form-grid create-box" key={student.id}>

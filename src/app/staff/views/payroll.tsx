@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
-import { configurePayrollJournalAction, configurePayrollMappingAction } from "./setup-actions";
-import { createEmployeeAction, createJobTitleAction, createSalaryAgreementAction, updateEmployeeAction, updateJobTitleAction } from "./employee-actions";
-import { createSalaryAdvanceAction, reverseSalaryAdvanceAction } from "./advance-actions";
-import { addPayrollAdjustmentAction, approvePayrollRunAction, createPayrollRunAction, lockPayrollRunAction, payPayrollRunAction, removePayrollAdjustmentAction, returnPayrollRunToDraftAction, reversePayrollPaymentAction, submitPayrollRunAction } from "./run-actions";
+import type { ViewProps } from "@/components/hub";
+import { configurePayrollJournalAction, configurePayrollMappingAction } from "@/app/payroll/setup-actions";
+import { createEmployeeAction, createJobTitleAction, createSalaryAgreementAction, updateEmployeeAction, updateJobTitleAction } from "@/app/payroll/employee-actions";
+import { createSalaryAdvanceAction, reverseSalaryAdvanceAction } from "@/app/payroll/advance-actions";
+import { addPayrollAdjustmentAction, approvePayrollRunAction, createPayrollRunAction, lockPayrollRunAction, payPayrollRunAction, removePayrollAdjustmentAction, returnPayrollRunToDraftAction, reversePayrollPaymentAction, submitPayrollRunAction } from "@/app/payroll/run-actions";
 
 type Row = Record<string, any>;
 function iso(value: unknown) { return String(value ?? "").slice(0, 10); }
@@ -15,9 +15,7 @@ function money(value: unknown, currency = "USD") {
   catch { return currency + " " + (Number.isFinite(n) ? n : 0).toFixed(2); }
 }
 
-export default async function PayrollPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
-  const auth = await requireUser();
-  const { error, success } = await searchParams;
+export async function PayrollView({ auth }: ViewProps) {
   const can = (permission: string) => auth.permissions.includes(permission);
   const payrollPermissions = ["employees.view","employees.manage","payroll.view","payroll.manage","payroll.approve","payroll.lock","payroll.pay","salary_advances.manage"];
   const canSeeData = payrollPermissions.some(can);
@@ -52,12 +50,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   const lockedPayable=runs.filter((r)=>r.status==="locked").reduce((sum,x)=>sum+Number(x.net_pay??0),0);
   const setupComplete=Boolean(config.payroll_journal_id)&&roles.length===3&&roles.every((x)=>x.account_id);
 
-  return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Advanced payroll</p><h1>Payroll control room</h1><p className="muted">Approvals, locking, payments, accounting mappings and detailed payroll history. Normal employee work starts in Staff.</p></div>
-      <div className="top-actions"><a className="button-link secondary-link" href="/staff">Back to Staff</a>{auth.permissions.some((p)=>p.startsWith("accounting."))?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}{auth.permissions.some((p)=>p.startsWith("rentals."))?<a className="button-link secondary-link" href="/rentals">Rentals</a>:null}</div>
-    </header>
-    {error?<div className="notice error">{error}</div>:null}{success?<div className="notice success">{success}</div>:null}
+  return <div className="hub-view">
 
     {canSeeData?<section className="status-grid">
       <article className="panel"><p className="eyebrow">Active employees</p><h2>{activeEmployees.length}</h2><p className="muted">{employees.length} employee records retained.</p></article>
@@ -113,5 +106,5 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
     </section>:null}
 
     {can("payroll.view")?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Employee ledger</p><h2>Payroll & advance ledger</h2><p className="muted">Advances, locked payroll, repayments, salary payable and paid salary in one history.</p></div></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>Employee</th><th>Event</th><th>Reference</th><th>Gross</th><th>Deductions</th><th>Advance + / repayment</th><th>Salary payable</th><th>Salary paid</th></tr></thead><tbody>{ledger.map((l)=><tr key={l.ledger_key}><td>{iso(l.event_date)}</td><td>{l.employee_number} · {l.first_name} {l.last_name}</td><td>{title(l.event_type)}</td><td>{l.reference}</td><td>{money(l.gross_earnings,l.currency)}</td><td>{money(l.deductions,l.currency)}</td><td>{Number(l.advance_increase)>0?"+"+money(l.advance_increase,l.currency):Number(l.advance_repayment)>0?"−"+money(l.advance_repayment,l.currency):"—"}</td><td>{money(l.salary_payable,l.currency)}</td><td>{money(l.salary_paid,l.currency)}</td></tr>)}</tbody></table></div></section>:null}
-  </main>;
+  </div>;
 }

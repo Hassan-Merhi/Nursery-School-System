@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { withTransaction } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
+import { withCurrentView } from "@/lib/hub-redirect";
 import {
   changePassword,
   hashPassword,
@@ -16,13 +17,13 @@ function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-function fail(message: string): never {
-  redirect(`/settings?error=${encodeURIComponent(message)}`);
+async function fail(message: string): Promise<never> {
+  redirect(await withCurrentView(`/settings?error=${encodeURIComponent(message)}`));
 }
 
-function success(message: string): never {
+async function success(message: string): Promise<never> {
   revalidatePath("/settings");
-  redirect(`/settings?success=${encodeURIComponent(message)}`);
+  redirect(await withCurrentView(`/settings?success=${encodeURIComponent(message)}`));
 }
 
 function uuidList(formData: FormData, key: string) {
@@ -40,7 +41,7 @@ export async function logoutAction() {
 export async function updateSchoolProfileAction(formData: FormData) {
   const auth = await requirePermission("school_profile.manage");
   const name = value(formData, "name");
-  if (!name) fail("School name is required.");
+  if (!name) return await fail("School name is required.");
 
   await withTransaction(async (client) => {
     const before = await client.query("select * from school_profile where id=1");
@@ -69,7 +70,7 @@ export async function updateSchoolProfileAction(formData: FormData) {
     });
   });
 
-  success("School profile updated.");
+  return await success("School profile updated.");
 }
 
 export async function createSchoolYearAction(formData: FormData) {
@@ -78,9 +79,9 @@ export async function createSchoolYearAction(formData: FormData) {
   const status = value(formData, "status") || "planned";
 
   if (!Number.isInteger(startYear) || startYear < 2000 || startYear > 2100) {
-    fail("Enter a valid school year start year.");
+    return await fail("Enter a valid school year start year.");
   }
-  if (!["planned", "current"].includes(status)) fail("Invalid school year status.");
+  if (!["planned", "current"].includes(status)) return await fail("Invalid school year status.");
 
   const name = `${startYear}-${startYear + 1}`;
   await withTransaction(async (client) => {
@@ -127,7 +128,7 @@ export async function createSchoolYearAction(formData: FormData) {
     });
   });
 
-  success(`School year ${name} created with all three terms.`);
+  return await success(`School year ${name} created with all three terms.`);
 }
 
 export async function updateSchoolTermStatusAction(formData: FormData) {
@@ -136,9 +137,9 @@ export async function updateSchoolTermStatusAction(formData: FormData) {
   const status = value(formData, "status");
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(termId)) {
-    fail("Invalid school term.");
+    return await fail("Invalid school term.");
   }
-  if (!["open", "closed"].includes(status)) fail("Invalid term status.");
+  if (!["open", "closed"].includes(status)) return await fail("Invalid term status.");
 
   let termName = "Term";
   await withTransaction(async (client) => {
@@ -156,9 +157,9 @@ export async function updateSchoolTermStatusAction(formData: FormData) {
       [termId],
     );
     const row = before.rows[0];
-    if (!row) fail("School term not found.");
+    if (!row) return await fail("School term not found.");
     if (status === "open" && row.year_status === "closed") {
-      fail("Reopen the school year before reopening one of its terms.");
+      return await fail("Reopen the school year before reopening one of its terms.");
     }
 
     termName = row.name;
@@ -173,7 +174,7 @@ export async function updateSchoolTermStatusAction(formData: FormData) {
     });
   });
 
-  success(`${termName} ${status === "closed" ? "closed" : "reopened"}.`);
+  return await success(`${termName} ${status === "closed" ? "closed" : "reopened"}.`);
 }
 
 export async function createUserAction(formData: FormData) {
@@ -183,15 +184,15 @@ export async function createUserAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const roleIds = uuidList(formData, "role_id");
 
-  if (!email || !email.includes("@")) fail("Enter a valid email address.");
-  if (!fullName) fail("Full name is required.");
-  if (!roleIds.length) fail("Assign at least one role.");
+  if (!email || !email.includes("@")) return await fail("Enter a valid email address.");
+  if (!fullName) return await fail("Full name is required.");
+  if (!roleIds.length) return await fail("Assign at least one role.");
 
   let passwordHash: string;
   try {
     passwordHash = await hashPassword(password);
   } catch (error) {
-    fail(error instanceof Error ? error.message : "Invalid password.");
+    return await fail(error instanceof Error ? error.message : "Invalid password.");
   }
 
   await withTransaction(async (client) => {
@@ -199,7 +200,7 @@ export async function createUserAction(formData: FormData) {
       "select id from role where id = any($1::uuid[])",
       [roleIds],
     );
-    if (validRoles.rowCount !== roleIds.length) fail("One or more roles are invalid.");
+    if (validRoles.rowCount !== roleIds.length) return await fail("One or more roles are invalid.");
 
     const excessivePermissions = await client.query(
       `select distinct rp.permission_key
@@ -210,7 +211,7 @@ export async function createUserAction(formData: FormData) {
       [roleIds, auth.permissions],
     );
     if (excessivePermissions.rowCount) {
-      fail("You cannot assign a role that grants permissions you do not have.");
+      return await fail("You cannot assign a role that grants permissions you do not have.");
     }
 
     const inserted = await client.query<{ id: string }>(
@@ -237,7 +238,7 @@ export async function createUserAction(formData: FormData) {
     });
   });
 
-  success("User created.");
+  return await success("User created.");
 }
 
 export async function updateUserAccessAction(formData: FormData) {
@@ -246,10 +247,10 @@ export async function updateUserAccessAction(formData: FormData) {
   const status = value(formData, "status");
   const roleIds = uuidList(formData, "role_id");
 
-  if (!["active", "disabled"].includes(status)) fail("Invalid user status.");
-  if (!roleIds.length) fail("A user must have at least one role.");
+  if (!["active", "disabled"].includes(status)) return await fail("Invalid user status.");
+  if (!roleIds.length) return await fail("A user must have at least one role.");
   if (userId === auth.userId && status === "disabled") {
-    fail("You cannot disable your own account.");
+    return await fail("You cannot disable your own account.");
   }
 
   await withTransaction(async (client) => {
@@ -261,13 +262,13 @@ export async function updateUserAccessAction(formData: FormData) {
        where u.id=$1 group by u.id`,
       [userId],
     );
-    if (!before.rowCount) fail("User not found.");
+    if (!before.rowCount) return await fail("User not found.");
 
     const validRoles = await client.query(
       "select id from role where id = any($1::uuid[])",
       [roleIds],
     );
-    if (validRoles.rowCount !== roleIds.length) fail("One or more roles are invalid.");
+    if (validRoles.rowCount !== roleIds.length) return await fail("One or more roles are invalid.");
 
     const excessivePermissions = await client.query(
       `select distinct rp.permission_key
@@ -278,7 +279,7 @@ export async function updateUserAccessAction(formData: FormData) {
       [roleIds, auth.permissions],
     );
     if (excessivePermissions.rowCount) {
-      fail("You cannot assign a role that grants permissions you do not have.");
+      return await fail("You cannot assign a role that grants permissions you do not have.");
     }
 
     const administratorRole = await client.query<{ id: string }>(
@@ -302,7 +303,7 @@ export async function updateUserAccessAction(formData: FormData) {
         [userId],
       );
       if (!anotherAdministrator.rowCount) {
-        fail("At least one active Administrator account must remain.");
+        return await fail("At least one active Administrator account must remain.");
       }
     }
 
@@ -334,7 +335,7 @@ export async function updateUserAccessAction(formData: FormData) {
     });
   });
 
-  success("User access updated.");
+  return await success("User access updated.");
 }
 
 export async function createRoleAction(formData: FormData) {
@@ -343,17 +344,17 @@ export async function createRoleAction(formData: FormData) {
   const description = value(formData, "description") || null;
   const permissionKeys = formData.getAll("permission").map(String);
 
-  if (!name) fail("Role name is required.");
+  if (!name) return await fail("Role name is required.");
 
   await withTransaction(async (client) => {
     const valid = await client.query<{ key: string }>(
       "select key from permission where key = any($1::text[])",
       [permissionKeys],
     );
-    if (valid.rowCount !== permissionKeys.length) fail("Invalid permission selection.");
+    if (valid.rowCount !== permissionKeys.length) return await fail("Invalid permission selection.");
     const excessive = permissionKeys.filter((key) => !auth.permissions.includes(key));
     if (excessive.length) {
-      fail("You cannot grant permissions that you do not have.");
+      return await fail("You cannot grant permissions that you do not have.");
     }
 
     const inserted = await client.query<{ id: string }>(
@@ -377,7 +378,7 @@ export async function createRoleAction(formData: FormData) {
     });
   });
 
-  success("Role created.");
+  return await success("Role created.");
 }
 
 export async function updateRolePermissionsAction(formData: FormData) {
@@ -390,19 +391,19 @@ export async function updateRolePermissionsAction(formData: FormData) {
       "select name,is_system from role where id=$1 for update",
       [roleId],
     );
-    if (!role.rowCount) fail("Role not found.");
+    if (!role.rowCount) return await fail("Role not found.");
     if (role.rows[0].is_system) {
-      fail("System role permissions are migration-controlled and cannot be weakened.");
+      return await fail("System role permissions are migration-controlled and cannot be weakened.");
     }
 
     const valid = await client.query(
       "select key from permission where key = any($1::text[])",
       [permissionKeys],
     );
-    if (valid.rowCount !== permissionKeys.length) fail("Invalid permission selection.");
+    if (valid.rowCount !== permissionKeys.length) return await fail("Invalid permission selection.");
     const excessive = permissionKeys.filter((key) => !auth.permissions.includes(key));
     if (excessive.length) {
-      fail("You cannot grant permissions that you do not have.");
+      return await fail("You cannot grant permissions that you do not have.");
     }
 
     const before = await client.query(
@@ -427,7 +428,7 @@ export async function updateRolePermissionsAction(formData: FormData) {
     });
   });
 
-  success("Role permissions updated.");
+  return await success("Role permissions updated.");
 }
 
 export async function updateSettingsAction(formData: FormData) {
@@ -438,11 +439,11 @@ export async function updateSettingsAction(formData: FormData) {
   const invoicePrefix = value(formData, "invoice_prefix").toUpperCase();
   const rentalPrefix = value(formData, "rental_prefix").toUpperCase();
 
-  if (!/^[A-Z]{3}$/.test(currency)) fail("Currency must be a 3-letter code.");
-  if (!locale || locale.length > 40) fail("Enter a valid number locale.");
+  if (!/^[A-Z]{3}$/.test(currency)) return await fail("Currency must be a 3-letter code.");
+  if (!locale || locale.length > 40) return await fail("Enter a valid number locale.");
   for (const prefix of [receiptPrefix, invoicePrefix, rentalPrefix]) {
     if (!/^[A-Z0-9-]{2,10}$/.test(prefix)) {
-      fail("Document prefixes must be 2-10 uppercase letters, numbers, or hyphens.");
+      return await fail("Document prefixes must be 2-10 uppercase letters, numbers, or hyphens.");
     }
   }
 
@@ -487,7 +488,7 @@ export async function updateSettingsAction(formData: FormData) {
     });
   });
 
-  success("System settings updated.");
+  return await success("System settings updated.");
 }
 
 export async function changePasswordAction(formData: FormData) {
@@ -495,6 +496,6 @@ export async function changePasswordAction(formData: FormData) {
   const currentPassword = String(formData.get("current_password") ?? "");
   const newPassword = String(formData.get("new_password") ?? "");
   const result = await changePassword(auth, currentPassword, newPassword);
-  if (!result.ok) fail(result.message);
-  success("Password changed. Other sessions were signed out.");
+  if (!result.ok) return await fail(result.message);
+  return await success("Password changed. Other sessions were signed out.");
 }

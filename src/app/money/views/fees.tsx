@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import {
   activateFeeScheduleAction,
   addInvoiceChargeAction,
@@ -19,7 +19,7 @@ import {
   revokeDiscountAction,
   updateDiscountConfigurationAction,
   voidDraftInvoiceAction,
-} from "../actions";
+} from "@/app/billing/actions";
 
 type BasicRow = Record<string, any>;
 
@@ -47,16 +47,8 @@ function modeExplanation(mode: string) {
   return "Only the single largest monetary discount applies. A 50% teacher-child discount beats a 10% sibling discount.";
 }
 
-export default async function BillingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
-  const auth = await requireUser();
-  const { error, success } = await searchParams;
+export async function FeesView({ auth }: ViewProps) {
   const can = (permission: string) => auth.permissions.includes(permission);
-  const canAccounting = ["accounting.view","accounting.manage","accounting.post","accounting.period_lock","accounting.mapping"].some(can);
-  const canOperations = ["expenses.view","expenses.manage","expenses.approve","expenses.post","suppliers.view","suppliers.manage","banking.view","banking.manage","banking.reconcile","recurring_expenses.view","recurring_expenses.manage","refunds.manage"].some(can);
   const allowed = [
     "billing.view",
     "billing.manage",
@@ -350,25 +342,7 @@ export default async function BillingPage({
     .reduce((sum, item) => sum + Number(item.unallocated_amount), 0);
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Fees, Discounts & Billing</h1>
-          <p className="muted">
-            Term fees, approved discounts, invoices, credits and payments use auditable snapshots.
-          </p>
-        </div>
-        <div className="top-actions">
-          <Link className="button-link secondary-link" href="/students">Families & students</Link>
-          {canAccounting ? <Link className="button-link secondary-link" href="/accounting">Accounting</Link> : null}
-          {canOperations ? <Link className="button-link secondary-link" href="/operations">Operations</Link> : null}
-          <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
-        </div>
-      </header>
-
-      {error ? <div className="notice error">{error}</div> : null}
-      {success ? <div className="notice success">{success}</div> : null}
+    <div className="hub-view">
 
       <section className="status-grid">
         <article className="panel">
@@ -662,7 +636,10 @@ export default async function BillingPage({
                         {invoice.family_number} · {invoice.year_name} · T{invoice.sequence} · {invoice.term_name}
                       </div>
                     </div>
-                    <span className="badge">{invoice.status}</span>
+                    <span className="top-actions">
+                      {can("report_documents.view") && invoice.status !== "draft" ? <Link className="button-link secondary-link" href={`/reports/documents/invoice/${invoice.id}`}>Print</Link> : null}
+                      <span className="badge">{invoice.status}</span>
+                    </span>
                   </div>
                   <div className="record-grid">
                     <div><strong>Subtotal</strong><p>{moneyLabel(invoice.subtotal_amount, invoice.currency)}</p></div>
@@ -1027,15 +1004,6 @@ export default async function BillingPage({
         </section>
       ) : null}
 
-      <section className="panel section-block">
-        <p className="eyebrow">Milestone 3</p>
-        <h2>Three-child manual balance test</h2>
-        <p className="muted">
-          With a 1,000.00 term fee: Child A normal = 1,000.00; Child B sibling 10% = 900.00;
-          Child C custom fixed 150.00 = 850.00. CI verifies these exact balances plus combined-discount modes,
-          partial payments, prepayments, overpayments, credit notes and reversals.
-        </p>
-      </section>
-    </main>
+    </div>
   );
 }

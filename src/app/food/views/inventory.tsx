@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import {
   addInventoryReceiptLineAction,
   addPurchaseOrderLineAction,
@@ -20,7 +19,7 @@ import {
   reverseInventoryReceiptAction,
   setIngredientStatusAction,
   updateIngredientReorderLevelAction,
-} from "./actions";
+} from "@/app/inventory/actions";
 
 function money(value:unknown,currency="USD"){
   const n=Number(value??0);
@@ -30,11 +29,9 @@ function money(value:unknown,currency="USD"){
 function number(value:unknown,decimals=3){return Number(value??0).toLocaleString("en-US",{maximumFractionDigits:decimals});}
 function dateText(value:unknown){return value?String(value).slice(0,10):"—";}
 
-export default async function InventoryPage({searchParams}:{searchParams:Promise<{error?:string;success?:string}>}){
-  const auth=await requireUser();
+export async function InventoryView({ auth }: ViewProps){
   const can=(p:string)=>auth.permissions.includes(p);
   if(!["inventory.view","inventory.manage","inventory.purchase","inventory.post","inventory.adjust"].some(can))redirect("/forbidden");
-  const {error,success}=await searchParams;
   const today=new Date().toISOString().slice(0,10);
 
   const units=(await query<any>("select * from inventory_unit where is_active=true order by name")).rows;
@@ -76,14 +73,7 @@ export default async function InventoryPage({searchParams}:{searchParams:Promise
   const receivableOrders=purchaseOrders.filter((x:any)=>["ordered","partially_received"].includes(x.status));
   const draftReceipts=receipts.filter((x:any)=>x.status==="draft");
 
-  return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Advanced inventory</p><h1>Inventory controls & purchasing</h1><p className="muted">Stock setup, receiving, posting, adjustments and accounting mappings. Routine food work starts in Food.</p></div>
-      <div className="top-actions"><Link className="button-link secondary-link" href="/food">Back to Food</Link><Link className="button-link secondary-link" href="/food">Food billing</Link><Link className="button-link secondary-link" href="/operations">Suppliers</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link></div>
-    </header>
-
-    {error?<div className="notice error">{error}</div>:null}
-    {success?<div className="notice success">{success}</div>:null}
+  return <div className="hub-view">
 
     <section className="status-grid">
       <article className="panel"><p className="eyebrow">Bought this month</p><h2>{money(month.purchased_amount,month.currency)}</h2><p className="muted">Posted ingredient receipts.</p></article>
@@ -135,6 +125,5 @@ export default async function InventoryPage({searchParams}:{searchParams:Promise
 
     {can("inventory.view")?<section className="panel section-block"><div className="section-heading"><div><p className="eyebrow">Audit-friendly stock history</p><h2>Recent inventory movements</h2></div><span className="badge">Last {movements.length}</span></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>Ingredient</th><th>Movement</th><th>Quantity</th><th>Unit cost</th><th>Value change</th><th>Reference</th></tr></thead><tbody>{movements.map((m:any)=><tr key={m.id}><td>{dateText(m.occurred_on)}</td><td>{m.ingredient_code} · {m.ingredient_name}</td><td>{String(m.movement_kind).replaceAll("_"," ")}</td><td>{number(m.quantity_delta)} {m.unit_code}</td><td>{money(m.unit_cost,inventoryCurrency)}</td><td>{money(m.value_delta,inventoryCurrency)}</td><td>{m.reference||m.source_type}</td></tr>)}{!movements.length?<tr><td colSpan={7}>No inventory movements yet.</td></tr>:null}</tbody></table></div></section>:null}
 
-    <section className="panel section-block"><p className="eyebrow">Scope</p><h2>Deliberately simple costing</h2><p className="muted">Step 11 tracks what Montikids buys, what remains in stock, and manual usage/waste at moving-average cost. It does not pretend to know grams consumed per child or recipe-level theoretical usage. That can be added later without replacing this inventory ledger.</p></section>
-  </main>;
+  </div>;
 }

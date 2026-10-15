@@ -95,7 +95,7 @@ export function deriveUiProfile(permissions: string[], roles: string[] = []): Ui
       homeDescription: "Student, enrollment, family and payment tasks for the school day.",
       studentHref: "/students",
       studentLabel: "Students",
-      moneyHref: "/billing",
+      moneyHref: "/money?view=payments",
       moneyLabel: "Payments",
       settingsLabel: "Account",
     };
@@ -121,7 +121,7 @@ export function deriveUiProfile(permissions: string[], roles: string[] = []): Ui
       label: "Teacher workspace",
       homeTitle: "Classroom today",
       homeDescription: "Class rosters and student information without financial administration.",
-      studentHref: "/classroom",
+      studentHref: "/students?view=classroom",
       studentLabel: "Classroom",
       moneyHref: "/money",
       moneyLabel: "Money",

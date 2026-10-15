@@ -16,14 +16,13 @@ function value(formData: FormData, key: string) {
 }
 
 function fail(message: string): never {
-  redirect(`/billing/admin?error=${encodeURIComponent(message)}`);
+  redirect(`/money?view=fees&error=${encodeURIComponent(message)}`);
 }
 
 function success(message: string): never {
-  revalidatePath("/billing");
-  revalidatePath("/billing/admin");
-  revalidatePath("/operations");
-  redirect(`/billing/admin?success=${encodeURIComponent(message)}`);
+  revalidatePath("/money");
+  revalidatePath("/dashboard");
+  redirect(`/money?view=fees&success=${encodeURIComponent(message)}`);
 }
 
 function requireUuid(raw: string, label: string) {
@@ -1166,7 +1165,7 @@ export async function reverseCreditNoteAction(formData: FormData) {
 export async function recordFamilyPaymentAction(formData: FormData) {
   const auth = await requirePermission("payments.manage");
   const familyIdRaw = value(formData, "family_id");
-  if (!UUID_RE.test(familyIdRaw)) redirect("/billing?error="+encodeURIComponent("Invalid family."));
+  if (!UUID_RE.test(familyIdRaw)) redirect("/money?view=payments&error="+encodeURIComponent("Invalid family."));
   const familyId = familyIdRaw;
   const familyError = (message: string): never =>
     redirect(`/students/families/${familyId}?error=${encodeURIComponent(message)}#billing`);
@@ -1365,8 +1364,8 @@ export async function recordFamilyPaymentAction(formData: FormData) {
     });
   });
 
-  revalidatePath("/billing");
-  revalidatePath("/operations");
+  revalidatePath("/money");
+  revalidatePath("/dashboard");
   revalidatePath(`/students/families/${familyId}`);
   redirect(`/receipts/${paymentId}?family=${familyId}&allocated=${allocatedTotal.toFixed(2)}`);
 }

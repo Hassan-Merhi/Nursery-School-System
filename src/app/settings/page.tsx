@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
+import { HubHeader, Notices, ViewSwitcher, flattenParams, pickView, type HubView, type SearchParams } from "@/components/hub";
 import {
   changePasswordAction,
   createRoleAction,
@@ -30,18 +31,14 @@ type UserRow = {
   roles: { id: string; name: string }[];
 };
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const auth = await requireUser();
   const canAdministration = [
     "school_profile.view","school_profile.manage","school_years.view","school_years.manage",
     "users.view","users.manage","roles.view","roles.manage","settings.view","settings.manage",
     "documents.view","documents.manage","audit.view",
   ].some((permission) => auth.permissions.includes(permission));
-  const { error, success } = await searchParams;
+  const params = flattenParams(await searchParams);
   const can = (permission: string) => auth.permissions.includes(permission);
 
   const canViewProfile = can("school_profile.view") || can("school_profile.manage");
@@ -52,6 +49,15 @@ export default async function DashboardPage({
   const canViewSettings = can("settings.view") || can("settings.manage");
   const canViewDocuments = can("documents.view");
   const canViewAudit = can("audit.view");
+
+  const views: HubView[] = [
+    { key: "school", label: "School", show: canViewProfile || canViewYears },
+    { key: "access", label: "Users & roles", show: canViewUsers || canViewPermissions },
+    { key: "system", label: "System", show: canViewSettings || canViewDocuments || canViewAudit },
+    { key: "account", label: "My account", show: true },
+  ].filter((view) => view.show);
+  const view = pickView(views, params.view);
+  const showing = (key: string) => view.key === key;
 
   const [
     profileResult,
@@ -190,45 +196,21 @@ export default async function DashboardPage({
     sequences.find((row) => row.document_type === type)?.prefix ?? "";
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">{canAdministration ? "Montikids Montessori Preschool & Nursery" : "Account"}</p>
-          <h1>{canAdministration ? "Settings & Administration" : "My account"}</h1>
-          <p className="muted">
-            Signed in as {auth.fullName} · {auth.roles.join(", ") || "No role"}
-            {!canAdministration ? " · Manage your password and session here." : ""}
-          </p>
-        </div>
-        <div className="top-actions">
+    <main className="app-shell hub-shell">
+      <HubHeader
+        eyebrow={canAdministration ? "Settings" : "Account"}
+        title={canAdministration ? "Settings" : "My account"}
+        description={`Signed in as ${auth.fullName} · ${auth.roles.join(", ") || "No role"}`}
+        actions={
           <form action={logoutAction}>
             <button className="secondary" type="submit">Sign out</button>
           </form>
-        </div>
-      </header>
+        }
+      />
+      <ViewSwitcher base="/settings" views={views} active={view.key} label="Settings sections" />
+      <Notices error={params.error} success={params.success} />
 
-      {error ? <div className="notice error">{error}</div> : null}
-      {success ? <div className="notice success">{success}</div> : null}
-
-      {canAdministration ? <section className="status-grid">
-        <article className="panel">
-          <p className="eyebrow">Security</p>
-          <h2>{auth.permissions.length} permissions active</h2>
-          <p className="muted">Server-side checks protect every privileged action.</p>
-        </article>
-        <article className="panel">
-          <p className="eyebrow">Academic structure</p>
-          <h2>3 fixed terms</h2>
-          <p className="muted">Sep–Dec · Jan–Mar · Apr–Jun</p>
-        </article>
-        <article className="panel">
-          <p className="eyebrow">Audit</p>
-          <h2>Append-only events</h2>
-          <p className="muted">Security and administration changes are recorded.</p>
-        </article>
-      </section> : null}
-
-      {profile ? (
+      {showing("school") && profile ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
@@ -267,7 +249,7 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {can("school_years.view") || can("school_years.manage") ? (
+      {showing("school") && (can("school_years.view") || can("school_years.manage")) ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
@@ -330,7 +312,7 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {can("users.view") || can("users.manage") ? (
+      {showing("access") && (can("users.view") || can("users.manage")) ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
@@ -419,7 +401,7 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {can("roles.view") || can("roles.manage") ? (
+      {showing("access") && (can("roles.view") || can("roles.manage")) ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
@@ -496,7 +478,7 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {can("settings.view") || can("settings.manage") ? (
+      {showing("system") && (can("settings.view") || can("settings.manage")) ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
@@ -533,7 +515,7 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {can("documents.view") || can("documents.manage") ? (
+      {showing("system") && (can("documents.view") || can("documents.manage")) ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>
@@ -569,27 +551,46 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      <section className="panel section-block">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Account</p>
-            <h2>Password security</h2>
-          </div>
-        </div>
-        <form action={changePasswordAction} className="inline-form">
-          <label>
-            Current password
-            <input type="password" name="current_password" autoComplete="current-password" required />
-          </label>
-          <label>
-            New password
-            <input type="password" name="new_password" autoComplete="new-password" minLength={12} required />
-          </label>
-          <button type="submit">Change password</button>
-        </form>
-      </section>
+      {showing("account") ? (
+        <>
+          <section className="panel section-block">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Account</p>
+                <h2>Signed in</h2>
+              </div>
+            </div>
+            <div className="record-grid">
+              <div><small>Name</small><strong>{auth.fullName}</strong></div>
+              <div><small>Email</small><strong>{auth.email}</strong></div>
+              <div><small>Roles</small><strong>{auth.roles.join(", ") || "No role"}</strong></div>
+              <div><small>Permissions</small><strong>{auth.permissions.length}</strong></div>
+            </div>
+          </section>
+          <section className="panel section-block">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Account</p>
+                <h2>Password security</h2>
+                <p className="muted">At least 12 characters with uppercase, lowercase and a number. Changing it signs out your other sessions.</p>
+              </div>
+            </div>
+            <form action={changePasswordAction} className="inline-form">
+              <label>
+                Current password
+                <input type="password" name="current_password" autoComplete="current-password" required />
+              </label>
+              <label>
+                New password
+                <input type="password" name="new_password" autoComplete="new-password" minLength={12} required />
+              </label>
+              <button type="submit">Change password</button>
+            </form>
+          </section>
+        </>
+      ) : null}
 
-      {can("audit.view") ? (
+      {showing("system") && can("audit.view") ? (
         <section className="panel section-block">
           <div className="section-heading">
             <div>

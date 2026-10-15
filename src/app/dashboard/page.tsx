@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { query } from "@/lib/db";
 import { requirePermission } from "@/lib/security";
+import { Notices, ViewSwitcher, flattenParams, pickView, type HubView, type SearchParams } from "@/components/hub";
+import { AlertsView } from "./views/alerts";
 
 type Row = Record<string, any>;
 type MoneyValue = [string, number];
@@ -60,8 +62,9 @@ function MetricLink({
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const auth = await requirePermission("dashboard.view");
+  const params = flattenParams(await searchParams);
   const can = (permission: string) => auth.permissions.includes(permission);
   const any = (permissions: string[]) => permissions.some(can);
 
@@ -192,6 +195,12 @@ export default async function DashboardPage() {
   const payrollDue = payrollDueResult.rows.map((row) => [String(row.currency), Number(row.amount)] as MoneyValue);
   const alertCount = Number(alertCountResult.rows[0]?.count ?? 0);
 
+  const views: HubView[] = [
+    { key: "overview", label: "Overview", show: true },
+    { key: "alerts", label: "Alerts", show: canAlerts, badge: alertCount },
+  ].filter((view) => view.show);
+  const view = pickView(views, params.view);
+
   const hasSchoolOverview = canStudents || canFees || canAlerts;
   const hasMoneyOverview = canCash || canSuppliers || canRent || canPayroll;
 
@@ -208,7 +217,12 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {hasSchoolOverview ? (
+      <ViewSwitcher base="/dashboard" views={views} active={view.key} label="Home sections" />
+      <Notices error={params.error} success={params.success} />
+
+      {view.key === "alerts" ? <AlertsView auth={auth} params={params} /> : null}
+
+      {view.key === "overview" && hasSchoolOverview ? (
         <section className="home-overview-panel" aria-labelledby="school-overview-title">
           <div className="home-section-heading">
             <div>
@@ -221,22 +235,22 @@ export default async function DashboardPage() {
               <MetricLink href="/students" label="Active students">{activeStudents}</MetricLink>
             ) : null}
             {canFees ? (
-              <MetricLink href="/billing" label="Expected"><MoneyStack values={expectedFees} /></MetricLink>
+              <MetricLink href="/money?view=payments" label="Expected"><MoneyStack values={expectedFees} /></MetricLink>
             ) : null}
             {canFees ? (
-              <MetricLink href="/billing" label="Collected"><MoneyStack values={collectedFees} /></MetricLink>
+              <MetricLink href="/money?view=payments" label="Collected"><MoneyStack values={collectedFees} /></MetricLink>
             ) : null}
             {canFees ? (
-              <MetricLink href="/billing" label="Outstanding" emphasis><MoneyStack values={outstandingFees} /></MetricLink>
+              <MetricLink href="/money?view=payments" label="Outstanding" emphasis><MoneyStack values={outstandingFees} /></MetricLink>
             ) : null}
             {canAlerts ? (
-              <MetricLink href="/notifications" label="Alerts" emphasis={alertCount > 0}>{alertCount}</MetricLink>
+              <MetricLink href="/dashboard?view=alerts" label="Alerts" emphasis={alertCount > 0}>{alertCount}</MetricLink>
             ) : null}
           </div>
         </section>
       ) : null}
 
-      {hasMoneyOverview ? (
+      {view.key === "overview" && hasMoneyOverview ? (
         <section className="home-overview-panel" aria-labelledby="money-overview-title">
           <div className="home-section-heading">
             <div>
@@ -264,7 +278,7 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {!hasSchoolOverview && !hasMoneyOverview ? (
+      {view.key === "overview" && !hasSchoolOverview && !hasMoneyOverview ? (
         <section className="panel empty-state">
           <strong>Home</strong>
           <span>Use the menu to open the areas available to your account.</span>

@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requirePermission } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import {
   acknowledgeNotificationAction,
   createEmployeeDocumentExpiryAction,
@@ -9,7 +10,7 @@ import {
   snoozeNotificationAction,
   updateEmployeeDocumentExpiryStatusAction,
   updateNotificationRuleAction,
-} from "./actions";
+} from "@/app/notifications/actions";
 
 type Rule={
   rule_key:string;label:string;category:string;enabled:boolean;lead_days:number;severity:string;description:string;
@@ -35,13 +36,9 @@ function dueLabel(value:Date|null){
   return dateValue(value);
 }
 
-export default async function NotificationsPage({
-  searchParams,
-}:{
-  searchParams:Promise<{error?:string;success?:string;status?:string}>;
-}){
-  const auth=await requirePermission("notifications.view");
-  const {error,success,status}=await searchParams;
+export async function AlertsView({ auth, params }: ViewProps){
+  if(!auth.permissions.includes("notifications.view"))redirect("/forbidden");
+  const status=params.status;
   const canManage=auth.permissions.includes("notifications.manage");
   const canRun=auth.permissions.includes("notifications.run");
 
@@ -83,27 +80,7 @@ export default async function NotificationsPage({
   )).rows:[];
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Step 12</p>
-          <h1>Notifications & Automation</h1>
-          <p className="muted">
-            Alerts are recalculated from billing, supplier, rental, payroll, academic, inventory and employee records.
-          </p>
-        </div>
-        <div className="top-actions">
-          <a className="button-link" href="/dashboard">Dashboard</a>
-          {canRun?(
-            <form action={runNotificationRefreshAction}>
-              <button type="submit">Refresh now</button>
-            </form>
-          ):null}
-        </div>
-      </header>
-
-      {error?<div className="notice error">{error}</div>:null}
-      {success?<div className="notice success">{success}</div>:null}
+    <div className="hub-view">
 
       <section className="status-grid">
         <article className="panel">
@@ -131,8 +108,13 @@ export default async function NotificationsPage({
           </div>
           <div className="top-actions">
             {["active","open","snoozed","acknowledged","dismissed","resolved"].map(x=>(
-              <a key={x} className="button-link" href={"/notifications?status="+x}>{x}</a>
+              <a key={x} className={x===filter?"button-link":"button-link secondary-link"} href={"/dashboard?view=alerts&status="+x}>{x}</a>
             ))}
+            {canRun?(
+              <form action={runNotificationRefreshAction}>
+                <button type="submit">Refresh now</button>
+              </form>
+            ):null}
           </div>
         </div>
 
@@ -237,7 +219,7 @@ export default async function NotificationsPage({
       </section>
 
       {canManage?(
-        <section className="panel section-block">
+        <section className="panel section-block" id="document-expiry">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Employees</p>
@@ -304,6 +286,6 @@ export default async function NotificationsPage({
           ):<p className="muted">No employee document expiries recorded yet.</p>}
         </section>
       ):null}
-    </main>
+    </div>
   );
 }

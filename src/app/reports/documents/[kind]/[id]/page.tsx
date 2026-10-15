@@ -54,7 +54,7 @@ export default async function ReportDocumentPage({params}:{params:Promise<{kind:
     const balance=(await query<Row>("select * from invoice_balance where id=$1",[id])).rows[0];
 
     return <main className="app-shell">
-      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Invoice</h1></div><Link className="button-link secondary-link" href="/reports?section=documents">Back to documents</Link></header>
+      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Invoice</h1></div><Link className="button-link secondary-link" href="/reports?view=documents">Back to documents</Link></header>
       <section className="panel receipt-sheet document-sheet">
         <div className="row-between"><div><p className="eyebrow">{profile.name}</p><h1>{invoice.invoice_number}</h1><p className="muted">{profile.address??""}</p></div><div><strong>{money(invoice.total_amount,invoice.currency)}</strong><div className="muted">Issued {iso(invoice.issued_on)} · Due {iso(invoice.due_on)}</div></div></div>
         <hr/>
@@ -133,7 +133,7 @@ export default async function ReportDocumentPage({params}:{params:Promise<{kind:
     const credit=(await query<Row>("select * from family_credit_balance where family_id=$1 order by currency",[id])).rows;
 
     return <main className="app-shell">
-      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Family statement</h1></div><Link className="button-link secondary-link" href="/reports?section=school">Back to reports</Link></header>
+      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Family statement</h1></div><Link className="button-link secondary-link" href="/reports?view=school">Back to reports</Link></header>
       <section className="panel receipt-sheet document-sheet">
         <div className="row-between"><div><p className="eyebrow">Family statement</p><h1>{family.family_number} · {family.display_name}</h1><p className="muted">{family.address??""}</p></div><div className="muted">{profile.name}<br/>{profile.phone??""}<br/>{profile.email??""}</div></div>
         <hr/>
@@ -173,7 +173,7 @@ export default async function ReportDocumentPage({params}:{params:Promise<{kind:
       from expense_receipt er join stored_document d on d.id=er.document_id
       where er.expense_id=$1 order by er.attached_at`,[id])).rows;
     return <main className="app-shell">
-      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Expense voucher</h1></div><Link className="button-link secondary-link" href="/reports?section=documents">Back to documents</Link></header>
+      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Expense voucher</h1></div><Link className="button-link secondary-link" href="/reports?view=documents">Back to documents</Link></header>
       <section className="panel receipt-sheet document-sheet">
         <div className="row-between"><div><p className="eyebrow">Expense voucher</p><h1>{expense.expense_number}</h1></div><div><strong>{money(expense.amount,expense.currency)}</strong><div className="muted">{iso(expense.incurred_on)}</div></div></div>
         <hr/>
@@ -225,7 +225,7 @@ export default async function ReportDocumentPage({params}:{params:Promise<{kind:
       order by a.advance_number,rs.installment_number`,[id])).rows;
 
     return <main className="app-shell">
-      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Payslip</h1></div><Link className="button-link secondary-link" href="/reports?section=documents">Back to documents</Link></header>
+      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Payslip</h1></div><Link className="button-link secondary-link" href="/reports?view=documents">Back to documents</Link></header>
       <section className="panel receipt-sheet document-sheet">
         <div className="row-between"><div><p className="eyebrow">Official payslip</p><h1>{item.employee_number} · {item.employee_name}</h1><p className="muted">{item.job_title||"Employee"}</p></div><div><strong>{money(item.net_pay,item.currency)}</strong><div className="muted">{item.run_number}</div></div></div>
         <hr/>
@@ -265,7 +265,7 @@ export default async function ReportDocumentPage({params}:{params:Promise<{kind:
     const entries=(await query<Row>("select * from supplier_statement where supplier_id=$1 order by currency,entry_date,occurred_at,source_id",[id])).rows;
     const currencies=[...new Set(entries.map((x)=>String(x.currency??"USD")))];
     return <main className="app-shell">
-      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Supplier statement</h1></div><Link className="button-link secondary-link" href="/reports?section=documents">Back to documents</Link></header>
+      <header className="topbar no-print"><div><p className="eyebrow">{profile.name}</p><h1>Supplier statement</h1></div><Link className="button-link secondary-link" href="/reports?view=documents">Back to documents</Link></header>
       <section className="panel receipt-sheet document-sheet">
         <div className="row-between"><div><p className="eyebrow">Supplier statement</p><h1>{supplier.supplier_number} · {supplier.name}</h1><p className="muted">{supplier.address??""}</p></div><div className="muted">{supplier.contact_name??""}<br/>{supplier.phone??""}<br/>{supplier.email??""}</div></div>
         <hr/>

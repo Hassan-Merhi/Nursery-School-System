@@ -46,8 +46,10 @@ try{
   for(const forbidden of ["employee_name","employee_number","salary_agreement_id","payslip"]){
     assert.equal(analyticsSource.includes(forbidden),false,"Analytics DTO must not expose "+forbidden);
   }
-  const pageSource=await readFile("src/app/analytics/page.tsx","utf8");
-  assert.match(pageSource,/requirePermission\("analytics\.view"\)/);
+  const pageSource=await readFile("src/app/reports/views/analytics.tsx","utf8");
+  assert.match(pageSource,/auth\.permissions\.includes\("analytics\.view"\)/);
+  const reportsHub=await readFile("src/app/reports/page.tsx","utf8");
+  assert.match(reportsHub,/can\("analytics\.view"\)/,"Reports hub must gate the Analytics button on analytics.view");
   for(const id of ["term-comparison","monthly-trends","expense-trends","student-growth","fee-collection","food-profitability","payroll-trends","rent-impact","cash-movement","year-over-year"]){
     assert.ok(pageSource.includes('id="'+id+'"'),"Analytics page must render "+id);
   }

@@ -14,11 +14,10 @@ const QTY_RE=/^\d+(?:\.\d{1,3})?$/;
 const ADJUSTMENT_KINDS=new Set(["usage","waste","spoilage","correction_in","correction_out"]);
 
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-function bad(m:string):never{redirect("/inventory?error="+encodeURIComponent(m));}
+function bad(m:string):never{redirect("/food?view=inventory&error="+encodeURIComponent(m));}
 function good(m:string):never{
-  revalidatePath("/inventory");revalidatePath("/operations");revalidatePath("/accounting");
-  revalidatePath("/reports");revalidatePath("/dashboard");revalidatePath("/food");
-  redirect("/inventory?success="+encodeURIComponent(m));
+  revalidatePath("/food");revalidatePath("/money");revalidatePath("/reports");revalidatePath("/dashboard");
+  redirect("/food?view=inventory&success="+encodeURIComponent(m));
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
 function oid(raw:string,label:string){return raw?id(raw,label):null;}

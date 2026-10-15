@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import {
   activateRentalAgreementAction,
   configureRentalMappingAction,
@@ -14,7 +14,7 @@ import {
   reverseRentRecognitionAction,
   updateLandlordAction,
   updateRentalAgreementAction,
-} from "./actions";
+} from "@/app/rentals/actions";
 
 type Row=Record<string,any>;
 
@@ -26,9 +26,7 @@ function money(amount:unknown,currency="USD"){
 }
 function title(value:unknown){return String(value??"").replaceAll("_"," ").replace(/\b\w/g,(m)=>m.toUpperCase());}
 
-export default async function RentalsPage({searchParams}:{searchParams:Promise<{error?:string;success?:string}>}){
-  const auth=await requireUser();
-  const {error,success}=await searchParams;
+export async function RentView({ auth }: ViewProps){
   const can=(p:string)=>auth.permissions.includes(p);
   const rentalPermissions=[
     "rentals.view","rentals.manage","rentals.pay","rentals.post",
@@ -106,22 +104,7 @@ export default async function RentalsPage({searchParams}:{searchParams:Promise<{
   const totalRecognized=agreements.reduce((sum,x)=>sum+Number(x.recognized_rent_expense??0),0);
   const setupComplete=Boolean(config.rentals_journal_id)&&roles.length===4&&roles.every((x)=>x.account_id);
 
-  return <main className="app-shell">
-    <header className="topbar">
-      <div>
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-        <h1>Rentals</h1>
-        <p className="muted">Rental agreements, landlords, schedules, prepaid rent, payables, deposits, payments, attachments and accounting recognition.</p>
-      </div>
-      <div className="top-actions">
-        <a className="button-link secondary-link" href="/dashboard">Dashboard</a>
-        {auth.permissions.some((p)=>p.startsWith("accounting."))?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}
-        {auth.permissions.some((p)=>["expenses.view","banking.view","suppliers.view"].includes(p))?<a className="button-link secondary-link" href="/operations">Operations</a>:null}
-      </div>
-    </header>
-
-    {error?<div className="notice error">{error}</div>:null}
-    {success?<div className="notice success">{success}</div>:null}
+  return <div className="hub-view">
 
     {canSeeData?<section className="status-grid">
       <article className="panel"><p className="eyebrow">Active agreements</p><h2>{activeAgreements.length}</h2><p className="muted">{agreements.length} total rental agreement{agreements.length===1?"":"s"}.</p></article>
@@ -271,5 +254,5 @@ export default async function RentalsPage({searchParams}:{searchParams:Promise<{
         {!agreements.length?<p className="muted">No rental agreements yet.</p>:null}
       </div>
     </section>:null}
-  </main>;
+  </div>;
 }

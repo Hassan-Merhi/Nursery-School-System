@@ -1,14 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
-import { guidedEnrollmentAction } from "./actions";
+import type { ViewProps } from "@/components/hub";
+import { guidedEnrollmentAction } from "@/app/students/admissions/actions";
 
 type Row=Record<string,any>;
-export default async function AdmissionsPage({searchParams}:{searchParams:Promise<{error?:string}>}){
- const auth=await requireUser();
+export async function EnrollChildView({ auth }: ViewProps){
  for(const p of ["families.manage","students.manage","enrollments.manage"])if(!auth.permissions.includes(p))redirect("/forbidden");
- const {error}=await searchParams;
  const today=(await query<{today:string}>("select (now() at time zone 'Asia/Beirut')::date::text today")).rows[0]?.today??new Date().toISOString().slice(0,10);
  const [familiesR,yearsR]=await Promise.all([
   query<Row>("select id,family_number,display_name from family order by display_name limit 500"),
@@ -23,9 +20,9 @@ export default async function AdmissionsPage({searchParams}:{searchParams:Promis
    (select count(*)::int from student_enrollment e where e.class_id=c.id and e.status='enrolled') enrolled_count
    from school_class c join school_year y on y.id=c.school_year_id
    where c.status<>'archived' and y.status<>'closed' order by y.starts_on desc,c.name`)).rows;
- return <main className="app-shell admissions-shell">
-  <header className="admissions-header"><div><p className="eyebrow">Admissions</p><h1>Enroll a child</h1><p className="muted">Family, child and class — one simple enrollment.</p></div><Link className="admissions-back" href="/students">← Students</Link></header>\n  <nav className="admissions-progress" aria-label="Enrollment steps"><span><b>1</b> Family</span><span><b>2</b> Child</span><span><b>3</b> Class</span></nav>
-  {error?<div className="notice error">{error}</div>:null}
+ return <div className="hub-view admissions-shell">
+  <div className="hub-intro"><h2>Enroll a child</h2><p className="muted">Family, child and class — one simple enrollment.</p></div>
+  <nav className="admissions-progress" aria-label="Enrollment steps"><span><b>1</b> Family</span><span><b>2</b> Child</span><span><b>3</b> Class</span></nav>
   <form action={guidedEnrollmentAction} className="guided-task-form">
    <section className="panel guided-step"><div className="guided-step-number">1</div><div className="guided-step-body"><div className="section-heading"><div><p className="eyebrow">Family</p><h2>Choose an existing family or create a new one</h2></div></div>
     <label>Existing family<select name="family_id" defaultValue=""><option value="">Create a new family below</option>{families.map(f=><option key={f.id} value={f.id}>{f.family_number} · {f.display_name}</option>)}</select></label>
@@ -40,5 +37,5 @@ export default async function AdmissionsPage({searchParams}:{searchParams:Promis
    </div></section>
    <div className="guided-submit"><div><strong>Ready to enroll?</strong><p className="muted">Review the details, then save the enrollment.</p></div><button type="submit" disabled={!enrollmentYear}>Enroll child</button></div>
   </form>
- </main>;
+ </div>;
 }

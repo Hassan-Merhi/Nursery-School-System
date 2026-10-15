@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import {
   activateFoodPackageAction,
   addFoodItemPriceAction,
@@ -20,7 +20,7 @@ import {
   removeFoodPackageItemAction,
   setFoodItemStatusAction,
   voidFoodBillAction,
-} from "../actions";
+} from "@/app/food/actions";
 
 function money(value:unknown,currency="USD"){
   const n=Number(value??0);
@@ -29,11 +29,9 @@ function money(value:unknown,currency="USD"){
 }
 function dateText(value:unknown){return value?String(value).slice(0,10):"—";}
 
-export default async function FoodPage({searchParams}:{searchParams:Promise<{error?:string;success?:string}>}){
-  const auth=await requireUser();
+export async function FoodPackagesView({ auth }: ViewProps){
   const can=(p:string)=>auth.permissions.includes(p);
   if(!["food.view","food.manage","food.billing","food.payments"].some(can))redirect("/forbidden");
-  const {error,success}=await searchParams;
   const today=new Date().toISOString().slice(0,10);
 
   const terms=(await query<any>("select t.id,t.school_year_id,t.sequence,t.name,t.starts_on::text,t.ends_on::text,t.status,y.name as year_name,y.status as year_status from school_term t join school_year y on y.id=t.school_year_id order by y.starts_on desc,t.sequence")).rows;
@@ -55,13 +53,7 @@ export default async function FoodPage({searchParams}:{searchParams:Promise<{err
   const draftPackages=packages.filter((x:any)=>x.status==="draft");
   const openBills=bills.filter((x:any)=>["issued","partially_paid"].includes(x.status));
 
-  return <main className="app-shell">
-    <header className="topbar">
-      <div><p className="eyebrow">Advanced Food</p><h1>Food billing & configuration</h1><p className="muted">Detailed package construction, billing, allocations and accounting configuration. Everyday food work starts in Food.</p></div>
-      <div className="top-actions"><Link className="button-link secondary-link" href="/food">Back to Food</Link><Link className="button-link secondary-link" href="/billing">Billing</Link><Link className="button-link secondary-link" href="/accounting">Accounting</Link><Link className="button-link secondary-link" href="/inventory">Inventory</Link></div>
-    </header>
-    {error?<div className="notice error">{error}</div>:null}
-    {success?<div className="notice success">{success}</div>:null}
+  return <div className="hub-view">
 
     <section className="status-grid">
       <article className="panel"><p className="eyebrow">Selections</p><h2>{kpis.active_selections}</h2><p className="muted">Active student food selections</p></article>
@@ -119,6 +111,5 @@ export default async function FoodPage({searchParams}:{searchParams:Promise<{err
       <div className="table-wrap"><table><thead><tr><th>Receipt</th><th>Food bill</th><th>Student</th><th>Date</th><th>Applied</th><th>Status</th></tr></thead><tbody>{foodPayments.map((p:any)=><tr key={p.id}><td><Link href={"/receipts/"+p.payment_id}>{p.receipt_number}</Link></td><td>{p.bill_number}</td><td>{p.student_number} · {p.student_name}</td><td>{dateText(p.allocated_on)}</td><td>{money(p.amount,p.currency)}</td><td><span className="badge">{p.payment_status}</span></td></tr>)}{!foodPayments.length?<tr><td colSpan={6}>No food payment receipts yet.</td></tr>:null}</tbody></table></div>
     </section>:null}
 
-    <section className="panel section-block"><p className="eyebrow">Integrity</p><h2>Release 1 controls stay authoritative</h2><p className="muted">Package prices are snapshotted when selected. Issued food bills cannot be edited. Parent payments and credits cannot be allocated twice across tuition and food. Food bills feed the same receivables control account and student/family ledgers.</p></section>
-  </main>;
+  </div>;
 }

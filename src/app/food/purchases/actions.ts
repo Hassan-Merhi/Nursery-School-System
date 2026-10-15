@@ -12,11 +12,10 @@ const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 const QTY_RE=/^\d+(?:\.\d{1,3})?$/;
 const MONEY_RE=/^\d+(?:\.\d{1,4})?$/;
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-function fail(m:string):never{redirect("/food/purchases?error="+encodeURIComponent(m));}
+function fail(m:string):never{redirect("/food?view=purchases&error="+encodeURIComponent(m));}
 function ok(m:string,anchor=""):never{
-  revalidatePath("/food/purchases");revalidatePath("/food/inventory");revalidatePath("/food/alerts");
-  revalidatePath("/inventory");revalidatePath("/money");revalidatePath("/dashboard");
-  redirect("/food/purchases?success="+encodeURIComponent(m)+anchor);
+  revalidatePath("/food");revalidatePath("/money");revalidatePath("/dashboard");
+  redirect("/food?view=purchases&success="+encodeURIComponent(m)+anchor);
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))fail("Invalid "+label+".");return raw;}
 function day(raw:string,label:string){if(!DATE_RE.test(raw)||Number.isNaN(Date.parse(raw+"T00:00:00Z")))fail("Enter a valid "+label+".");return raw;}

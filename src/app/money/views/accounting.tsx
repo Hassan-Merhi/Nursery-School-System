@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
+import type { ViewProps } from "@/components/hub";
 import {
   createAccountAction,
   createAccountingPeriodAction,
@@ -18,7 +17,7 @@ import {
   updateAccountingMappingAction,
   updateBillingJournalAction,
   updateAccountStatusAction,
-} from "./actions";
+} from "@/app/accounting/actions";
 
 type Row = Record<string, any>;
 
@@ -36,13 +35,7 @@ function moneyLabel(amount: unknown, currency = "USD") {
   }
 }
 
-export default async function AccountingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
-  const auth = await requireUser();
-  const { error, success } = await searchParams;
+export async function AccountingView({ auth }: ViewProps) {
   const can = (permission: string) => auth.permissions.includes(permission);
   const allowed = [
     "accounting.view",
@@ -217,24 +210,7 @@ export default async function AccountingPage({
   const trialCredit = trialBalance.reduce((sum, row) => sum + Number(row.credit_balance), 0);
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-          <h1>Accounting Core</h1>
-          <p className="muted">
-            Double-entry accounting with a custom chart of accounts, period controls, posting, reversals, and reconciled reporting.
-          </p>
-        </div>
-        <div className="top-actions">
-          <Link className="button-link secondary-link" href="/billing">Fees & billing</Link>
-          <Link className="button-link secondary-link" href="/operations">Operations</Link>
-          <Link className="button-link secondary-link" href="/dashboard">Foundation dashboard</Link>
-        </div>
-      </header>
-
-      {error ? <div className="notice error">{error}</div> : null}
-      {success ? <div className="notice success">{success}</div> : null}
+    <div className="hub-view">
 
       {position ? (
         <section className="status-grid">
@@ -819,16 +795,6 @@ export default async function AccountingPage({
         </>
       ) : null}
 
-      <section className="panel section-block">
-        <p className="eyebrow">Milestone 4</p>
-        <h2>Tiny-company reconciliation</h2>
-        <p className="muted">
-          CI creates custom accounts, posts a 10,000.00 opening bank balance, receives 1,000.00,
-          spends 200.00, and transfers 500.00 between bank accounts. Expected ending assets are
-          10,800.00, current surplus is 800.00, net position is 10,800.00, and the trial balance
-          must reconcile exactly.
-        </p>
-      </section>
-    </main>
+    </div>
   );
 }

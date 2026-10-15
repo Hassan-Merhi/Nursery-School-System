@@ -12,12 +12,12 @@ const DATE_RE=/^\\d{4}-\\d{2}-\\d{2}$/;
 const MONEY_RE=/^\\d+(?:\\.\\d{1,2})?$/;
 
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-function bad(m:string):never{redirect("/operations?error="+encodeURIComponent(m));}
+function bad(m:string):never{redirect("/money?view=suppliers&error="+encodeURIComponent(m));}
 function good(m:string,d?:FormData):never{
-  revalidatePath("/operations");revalidatePath("/money");revalidatePath("/billing");revalidatePath("/accounting");revalidatePath("/dashboard");
+  revalidatePath("/money");revalidatePath("/dashboard");
   const returnTo=d?String(d.get("return_to")??"").trim():"";
   if(returnTo==="/money")redirect("/money?success="+encodeURIComponent(m));
-  redirect("/operations?success="+encodeURIComponent(m));
+  redirect("/money?view=suppliers&success="+encodeURIComponent(m));
 }
 function id(raw:string,label:string){if(!UUID_RE.test(raw))bad("Invalid "+label+".");return raw;}
 function oid(raw:string,label:string){return raw?id(raw,label):null;}

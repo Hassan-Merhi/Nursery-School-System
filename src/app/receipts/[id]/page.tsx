@@ -51,7 +51,7 @@ export default async function ReceiptPage({params}:{params:Promise<{id:string}>}
      order by allocated_on,created_at`,[id])).rows;
 
   return <main className="app-shell">
-    <header className="topbar no-print"><div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payment receipt</h1></div><div className="top-actions"><PrintButton/><Link className="button-link secondary-link" href={"/students/families/"+payment.family_id+"#billing"}>Back to family</Link><Link className="button-link secondary-link" href="/billing">Find another payment</Link></div></header>
+    <header className="topbar no-print"><div><p className="eyebrow">Montikids Montessori Preschool & Nursery</p><h1>Payment receipt</h1></div><div className="top-actions"><PrintButton/><Link className="button-link secondary-link" href={"/students/families/"+payment.family_id+"#billing"}>Back to family</Link><Link className="button-link secondary-link" href="/money?view=payments">Find another payment</Link></div></header>
     <section className="panel receipt-sheet">
       <div className="row-between"><div><p className="eyebrow">Official receipt</p><h1>{payment.receipt_number}</h1></div><div><strong>{money(payment.amount,payment.currency)}</strong><div className="muted">{String(payment.received_on).slice(0,10)}</div></div></div>
       <hr/>

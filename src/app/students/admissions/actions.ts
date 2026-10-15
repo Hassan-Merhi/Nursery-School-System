@@ -10,7 +10,7 @@ import { requireUser } from "@/lib/security";
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 function v(d:FormData,k:string){return String(d.get(k)??"").trim();}
-function fail(m:string):never{redirect("/students/admissions?error="+encodeURIComponent(m));}
+function fail(m:string):never{redirect("/students?view=enroll&error="+encodeURIComponent(m));}
 function id(raw:string,label:string){if(!UUID_RE.test(raw))fail("Invalid "+label+".");return raw;}
 function day(raw:string,label:string){if(!DATE_RE.test(raw)||Number.isNaN(Date.parse(raw+"T00:00:00Z")))fail("Enter a valid "+label+".");return raw;}
 function list(d:FormData,k:string){const values=d.getAll(k).map(String);if(values.some(x=>!UUID_RE.test(x)))fail("Invalid term selection.");return values;}

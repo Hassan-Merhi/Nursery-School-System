@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
 import { requireUser } from "@/lib/security";
+import { HubHeader, ViewSwitcher, flattenParams, type HubView, type SearchParams } from "@/components/hub";
+import { AnalyticsView } from "./views/analytics";
 
 type Row = Record<string, any>;
-type Search = { from?: string; to?: string; section?: string };
 
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
-const sections=["overview","financial","school","payroll","documents"] as const;
+const sections=["overview","financial","school","payroll","documents","analytics"] as const;
+const labels:Record<(typeof sections)[number],string>={
+  overview:"Overview",financial:"Financial",school:"School",payroll:"Payroll",documents:"Documents",analytics:"Analytics",
+};
 
 function money(amount:unknown,currency="USD"){
   const n=Number(amount??0);
@@ -15,9 +19,6 @@ function money(amount:unknown,currency="USD"){
 }
 function date(value:unknown){return String(value??"").slice(0,10);}
 function title(value:unknown){return String(value??"").replaceAll("_"," ").replace(/\b\w/g,(m)=>m.toUpperCase());}
-function qs(from:string,to:string,section:string){
-  return "?"+new URLSearchParams({from,to,section}).toString();
-}
 function currencyTotals(rows:Row[],field:string){
   const totals=new Map<string,number>();
   for(const row of rows){
@@ -34,21 +35,23 @@ function Metric({label,values,note}:{label:string;values:Array<[string,number]>;
   return <article className="panel"><p className="eyebrow">{label}</p><h2 className="metric-value"><MoneyStack values={values}/></h2><p className="muted compact-text">{note}</p></article>;
 }
 
-export default async function ReportsPage({searchParams}:{searchParams:Promise<Search>}){
+export default async function ReportsPage({searchParams}:{searchParams:Promise<SearchParams>}){
   const auth=await requireUser();
   const can=(p:string)=>auth.permissions.includes(p);
-  if(!["management.view","reports.view","report_documents.view"].some(can))redirect("/forbidden");
+  if(!["management.view","reports.view","report_documents.view","analytics.view"].some(can))redirect("/forbidden");
 
   const visibleSections=sections.filter((item)=>{
     if(item==="overview")return can("management.view");
     if(item==="financial"||item==="school")return can("reports.view");
     if(item==="payroll")return can("reports.view")&&can("payroll.view");
     if(item==="documents")return can("report_documents.view");
+    if(item==="analytics")return can("analytics.view");
     return false;
   });
   if(!visibleSections.length)redirect("/forbidden");
 
-  const params=await searchParams;
+  const params=flattenParams(await searchParams);
+  const requestedView=params.view??params.section;
   const clock=(await query<{today:string;month_start:string}>(
     `select
        (now() at time zone sp.timezone)::date::text today,
@@ -57,14 +60,9 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
   )).rows[0];
   const from=DATE_RE.test(params.from??"")?params.from!:clock.month_start;
   const to=DATE_RE.test(params.to??"")?params.to!:clock.today;
-  if(to<from)redirect("/reports?section=overview");
-  const requestedSection=sections.includes((params.section??visibleSections[0]) as any)
-    ?String(params.section??visibleSections[0])
-    :String(visibleSections[0]);
-  if(!visibleSections.includes(requestedSection as (typeof sections)[number])){
-    redirect("/reports?section="+visibleSections[0]);
-  }
-  const section=requestedSection;
+  if(to<from)redirect("/reports?view="+visibleSections[0]);
+  const section:(typeof sections)[number]=visibleSections.find((item)=>item===requestedView)??visibleSections[0];
+  const views:HubView[]=visibleSections.map((item)=>({key:item,label:labels[item],show:true}));
 
   const payrollInstalled=(await query<{installed:boolean}>(
     "select to_regclass('employee') is not null as installed",
@@ -245,32 +243,26 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
 
   const exportHref=(kind:string)=>"/reports/export?"+new URLSearchParams({kind,from,to}).toString();
 
-  return <main className="app-shell report-shell">
-    <header className="topbar">
-      <div>
-        <p className="eyebrow">Montikids Montessori Preschool & Nursery</p>
-        <h1>Net Position, Management & Reports</h1>
-        <p className="muted">Read-only management reporting from posted accounting, billing, enrollment, rentals and payroll records.</p>
-      </div>
-      <div className="top-actions no-print">
-        <a className="button-link secondary-link" href="/dashboard">Administration</a>
-        {can("accounting.view")?<a className="button-link secondary-link" href="/accounting">Accounting</a>:null}
-        {can("analytics.view")?<a className="button-link secondary-link" href="/analytics">Advanced analytics</a>:null}
-      </div>
-    </header>
+  return <main className="app-shell hub-shell report-shell">
+    <HubHeader
+      eyebrow="Reports"
+      title="Reports"
+      description={section==="analytics"
+        ?"Term comparison, monthly trends, growth, collection rate and year-over-year analysis."
+        :"Read-only management reporting from posted accounting, billing, enrollment, rentals and payroll records."}
+    />
+    <ViewSwitcher base="/reports" views={views} active={section} keep={section==="analytics"?{}:{from,to}} label="Report sections"/>
 
-    <section className="panel report-filter no-print">
+    {section!=="analytics"?<section className="panel report-filter no-print">
       <form className="inline-form" action="/reports" method="get">
-        <input type="hidden" name="section" value={section}/>
+        <input type="hidden" name="view" value={section}/>
         <label>From<input type="date" name="from" defaultValue={from}/></label>
         <label>To<input type="date" name="to" defaultValue={to}/></label>
         <button type="submit">Apply period</button>
       </form>
-    </section>
+    </section>:null}
 
-    <nav className="report-nav no-print" aria-label="Report sections">
-      {visibleSections.map((item)=><a key={item} className={section===item?"active":""} href={"/reports"+qs(from,to,item)}>{title(item)}</a>)}
-    </nav>
+    {section==="analytics"?<AnalyticsView auth={auth} params={params}/>:null}
 
     {section==="overview"?<>
       <section className="status-grid">

@@ -88,27 +88,44 @@ try {
     billing,
     familyHub,
     receipt,
+    moneyHub,
     money,
     staff,
     foodPurchases,
     classroom,
     classroomDetail,
+    studentsHub,
     studentDirectory,
+    hub,
+    nextConfig,
   ] = await Promise.all([
     file("src/components/app-navigation.tsx"),
     file("src/app/dashboard/page.tsx"),
-    file("src/app/students/admissions/page.tsx"),
+    file("src/app/students/views/enroll.tsx"),
     file("src/app/students/admissions/actions.ts"),
-    file("src/app/billing/page.tsx"),
+    file("src/app/money/views/payments.tsx"),
     file("src/app/students/families/[id]/page.tsx"),
     file("src/app/receipts/[id]/page.tsx"),
     file("src/app/money/page.tsx"),
-    file("src/app/staff/page.tsx"),
-    file("src/app/food/purchases/page.tsx"),
-    file("src/app/classroom/page.tsx"),
+    file("src/app/money/views/overview.tsx"),
+    file("src/app/staff/views/employees.tsx"),
+    file("src/app/food/views/purchases.tsx"),
+    file("src/app/students/views/classroom.tsx"),
     file("src/app/classroom/[id]/page.tsx"),
     file("src/app/students/page.tsx"),
+    file("src/app/students/views/directory.tsx"),
+    file("src/components/hub.tsx"),
+    file("next.config.ts"),
   ]);
+
+  // One page per workspace: every hub uses the shared button row instead of separate sub-pages.
+  assert(hub.includes("view-switcher"), "Shared hub view switcher is missing.");
+  for (const page of ["src/app/money/page.tsx","src/app/staff/page.tsx","src/app/food/page.tsx","src/app/students/page.tsx","src/app/reports/page.tsx","src/app/settings/page.tsx","src/app/dashboard/page.tsx"]) {
+    assert((await file(page)).includes("<ViewSwitcher"), `${page} must switch sections with buttons.`);
+  }
+  for (const legacy of ["/billing","/billing/admin","/operations","/rentals","/accounting","/payroll","/food/purchases","/inventory","/analytics","/notifications","/classroom","/students/admissions"]) {
+    assert(nextConfig.includes(`"${legacy}"`), `Legacy route ${legacy} must redirect to its hub view.`);
+  }
 
   assert(navigation.includes("deriveUiProfile"), "Main navigation must be permission-profile aware.");
   assert(navigation.includes('label: "Payments"') || navigation.includes('"Payments"'), "Reception payment navigation is missing.");
@@ -124,7 +141,7 @@ try {
     "Enrollment steps are incomplete.",
   );
   assert(admissionAction.includes("guidedEnrollmentAction"), "Guided enrollment transaction is missing.");
-  assert(studentDirectory.includes('href="/students/admissions"'), "Students page must expose guided enrollment.");
+  assert(studentsHub.includes('href="/students?view=enroll"'), "Students page must expose guided enrollment.");
 
   // Common tasks 2, 3 and 7: tuition, receipt, outstanding balance.
   assert(billing.includes("Start with the family"), "Billing must start with family search.");
@@ -134,7 +151,7 @@ try {
 
   // Common task 4: add expense.
   assert(money.includes("Record an expense"), "Money must expose the everyday expense task.");
-  assert(money.includes('profile.kind === "reception"'), "Reception must not fall into generic Money controls.");
+  assert(moneyHub.includes('profile.kind === "reception"'), "Reception must not fall into generic Money controls.");
 
   // Common task 5: run payroll.
   assert(staff.includes("Continue payroll workflow"), "Staff must expose the current payroll continuation.");
@@ -149,12 +166,13 @@ try {
   for (const forbidden of ["invoice_number","balance_amount","payment_account","accounting_mapping","salary_payable"]) {
     assert(!teacherSurface.includes(forbidden), `Teacher classroom surface leaked finance marker: ${forbidden}`);
   }
-  assert(studentDirectory.includes('profile.kind === "teacher"'), "Teacher must be redirected away from full Students administration.");
+  assert(studentsHub.includes('profile.kind === "teacher"'), "Teacher must be kept away from full Students administration.");
+  assert(!studentDirectory.includes("<main"), "Student directory must render inside the Students hub, not as its own page.");
   assert(familyHub.includes('profile.kind === "teacher"'), "Teacher must be blocked from family financial hub.");
   assert(classroom.includes('assigned.map((c)=>c.id)'), "Teacher roster must be scoped to assigned classes.");
   assert(classroomDetail.includes("student.lead_teacher") && classroomDetail.includes("auth.fullName"), "Teacher student detail must enforce lead-teacher assignment.");
 
-  console.log("Phase 9–10 role and usability verification passed.");
+  console.log("Role, usability and single-page hub verification passed.");
 } finally {
   await pool.end();
 }

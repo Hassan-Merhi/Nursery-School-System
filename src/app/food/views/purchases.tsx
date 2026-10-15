@@ -1,36 +1,29 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
-import { requireUser } from "@/lib/security";
-import { FoodNavigation } from "@/components/food-navigation";
+import type { ViewProps } from "@/components/hub";
 import {
   quickAddPurchaseLineAction,
   quickCreatePurchaseOrderAction,
   quickCreateReceiptFromOrderAction,
   quickPlacePurchaseOrderAction,
   quickPostReceiptAction,
-} from "./actions";
+} from "@/app/food/purchases/actions";
 
 type Row=Record<string,any>;
 function iso(v:unknown){return String(v??"").slice(0,10);}
 function money(v:unknown,c="USD"){const n=Number(v??0);try{return new Intl.NumberFormat("en-US",{style:"currency",currency:c,minimumFractionDigits:2}).format(n);}catch{return c+" "+n.toFixed(2);}}
 function qty(v:unknown){return Number(v??0).toLocaleString("en-US",{maximumFractionDigits:3});}
 
-export default async function FoodPurchasesPage({
-  searchParams,
-}:{
-  searchParams:Promise<{error?:string;success?:string}>;
-}){
- const auth=await requireUser(),can=(p:string)=>auth.permissions.includes(p);
+export async function FoodPurchasesView({ auth }: ViewProps){
+ const can=(p:string)=>auth.permissions.includes(p);
  if(!["inventory.view","inventory.purchase","inventory.post","inventory.manage"].some(can))redirect("/forbidden");
- const {error,success}=await searchParams;
  const today=(await query<{today:string}>("select (now() at time zone 'Asia/Beirut')::date::text today")).rows[0]?.today??new Date().toISOString().slice(0,10);
  const currency=(await query<{currency:string|null}>("select value #>> '{}' currency from app_setting where key='currency'")).rows[0]?.currency??"USD";
  const [ordersR,receiptsR,suppliersR,ingredientsR,linesR]=await Promise.all([
   query<Row>("select * from food_purchase_order_summary order by created_at desc limit 80"),
   query<Row>("select * from inventory_receipt_summary order by created_at desc limit 80"),
   can("inventory.purchase")?query<Row>("select id,supplier_number,name from supplier where status='active' order by name"):Promise.resolve({rows:[] as Row[]}),
-  can("inventory.purchase")?query<Row>("select b.ingredient_id,b.code,b.name,b.unit_code,b.quantity_on_hand,b.average_unit_cost,b.currency from ingredient_inventory_balance b where b.status='active' order by b.name"):Promise.resolve({rows:[] as Row[]}),
+  can("inventory.purchase")?query<Row>("select b.ingredient_id,b.code,b.name,b.unit_code,b.quantity_on_hand,b.average_unit_cost from ingredient_inventory_balance b where b.status='active' order by b.name"):Promise.resolve({rows:[] as Row[]}),
   query<Row>(`select pr.*,i.name ingredient_name,u.code unit_code
     from food_purchase_order_line_progress pr
     join ingredient i on i.id=pr.ingredient_id
@@ -42,10 +35,7 @@ export default async function FoodPurchasesPage({
  const drafts=orders.filter(o=>o.status==="draft");
  const receiving=orders.filter(o=>["ordered","partially_received"].includes(o.status)&&Number(o.received_quantity??0)<Number(o.ordered_quantity??0));
  const draftReceipts=receipts.filter(r=>r.status==="draft");
- return <main className="app-shell food-workspace">
-  <header className="topbar"><div><p className="eyebrow">Food · Purchasing</p><h1>Buy food stock</h1><p className="muted">Create the purchase, add ingredients, place the order, receive the delivery, and post stock from one page.</p></div><Link className="button-link secondary-link" href="/inventory">Advanced inventory</Link></header>
-  <FoodNavigation/>
-  {error?<div className="notice error">{error}</div>:null}{success?<div className="notice success">{success}</div>:null}
+ return <div className="hub-view food-workspace">
 
   <section className="money-summary-grid">
    <article className="panel"><p className="eyebrow">Open orders</p><h2>{open.length}</h2><p className="muted">Draft, ordered or partially received.</p></article>
@@ -85,7 +75,7 @@ export default async function FoodPurchasesPage({
   </section>
 
   <section className="panel section-block">
-   <div className="section-heading"><div><p className="eyebrow">Step 3</p><h2>Receive deliveries</h2><p className="muted">This captures all quantities still outstanding on the selected order. Corrections stay in Advanced inventory.</p></div></div>
+   <div className="section-heading"><div><p className="eyebrow">Step 3</p><h2>Receive deliveries</h2><p className="muted">This captures all quantities still outstanding on the selected order. Corrections are made under Inventory.</p></div></div>
    <div className="card-list">{receiving.map(o=><article className="subcard" id={"order-"+o.id} key={o.id}>
     <div className="row-between"><div><strong>{o.order_number} · {o.supplier_name}</strong><div className="muted">{qty(o.received_quantity)} units received of {qty(o.ordered_quantity)} ordered · {money(o.order_total,o.currency)}</div></div><span className="badge">{o.status}</span></div>
     <div className="purchase-line-list">{lines.filter(l=>l.purchase_order_id===o.id&&Number(l.quantity_outstanding)>0).map(l=><div key={l.purchase_order_line_id}><span>{l.ingredient_name}</span><strong>{qty(l.quantity_outstanding)} {l.unit_code} outstanding</strong></div>)}</div>
@@ -103,5 +93,5 @@ export default async function FoodPurchasesPage({
    <details className="hub-details"><summary>Purchase order history ({orders.length})</summary><div className="responsive-card-table"><table><thead><tr><th>Order</th><th>Supplier</th><th>Ordered</th><th>Total</th><th>Received qty</th><th>Status</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}><td data-label="Order">{o.order_number}</td><td data-label="Supplier">{o.supplier_name}</td><td data-label="Ordered">{iso(o.ordered_on)}</td><td data-label="Total">{money(o.order_total,o.currency)}</td><td data-label="Received qty">{qty(o.received_quantity)} / {qty(o.ordered_quantity)}</td><td data-label="Status"><span className="badge">{o.status}</span></td></tr>)}</tbody></table></div></details>
    <details className="hub-details"><summary>Receipt history ({receipts.length})</summary><div className="money-list">{receipts.slice(0,30).map(r=><article className="money-list-row" key={r.id}><div><strong>{r.receipt_number} · {r.supplier_name}</strong><small>{iso(r.received_on)}{r.order_number?` · ${r.order_number}`:""}</small></div><div><strong>{money(r.receipt_total,r.currency)}</strong><span className="badge">{r.status}</span></div></article>)}</div></details>
   </section>
- </main>;
+ </div>;
 }
